@@ -4,6 +4,7 @@ import '../../providers/word_search_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class WordSearchScreen extends StatefulWidget {
   const WordSearchScreen({super.key});
@@ -180,9 +181,9 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
 
     Widget statusWidget;
     if (provider.isGameOver) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text('ALL WORDS FOUND!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       );
     } else {

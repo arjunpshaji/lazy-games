@@ -4,6 +4,7 @@ import '../../providers/sudoku_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class SudokuScreen extends StatefulWidget {
   const SudokuScreen({super.key});
@@ -73,9 +74,9 @@ class _SudokuScreenState extends State<SudokuScreen> {
     if (provider.isLoading) {
       statusWidget = const Text('GENERATING BOARD IN BACKGROUND...', style: TextStyle(color: AppTheme.neonCyan));
     } else if (provider.isWinner) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text('SUDOKU SOLVED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
       );
     } else {
@@ -250,8 +251,10 @@ class _SudokuScreenState extends State<SudokuScreen> {
                           borderRadius: BorderRadius.circular(8),
                           child: AspectRatio(
                             aspectRatio: 1,
-                            child: Container(
-                              decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen, borderWidth: 1.0, borderRadius: 8),
+                            child: AnimatedNeonContainer(
+                              color: AppTheme.neonGreen,
+                              borderWidth: 1.0,
+                              borderRadius: 8,
                               alignment: Alignment.center,
                               child: Text(
                                 '$num',

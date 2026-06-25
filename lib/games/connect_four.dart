@@ -4,6 +4,7 @@ import '../../providers/connect_four_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class ConnectFourScreen extends StatefulWidget {
   const ConnectFourScreen({super.key});
@@ -61,11 +62,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           winnerText = provider.winner == 1 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
         }
       }
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
-        ),
         child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
       );
     } else {
@@ -77,11 +76,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
         turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (CYAN)" : "PLAYER 2'S TURN (VIOLET)";
       }
 
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
-        ),
         child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       );
     }

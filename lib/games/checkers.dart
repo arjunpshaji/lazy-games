@@ -4,6 +4,7 @@ import '../../providers/checkers_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class CheckersScreen extends StatefulWidget {
   const CheckersScreen({super.key});
@@ -58,9 +59,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
       } else {
         winnerText = provider.winner == 1 ? "PINK WINS!" : "CYAN WINS!";
       }
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
       );
     } else {
@@ -72,11 +73,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
         turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (PINK)" : "PLAYER 2'S TURN (CYAN)";
       }
 
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
-        ),
         child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       );
     }

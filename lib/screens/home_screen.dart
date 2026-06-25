@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/network_manager.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animated_neon_container.dart';
 
 class GameInfo {
   final String id;
@@ -31,7 +32,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _staggerController;
   final List<GameInfo> _games = [
     GameInfo(
@@ -143,7 +145,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             // Fancy Dashboard Header
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 28.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -155,21 +160,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           children: [
                             Text(
                               'LAZY GAMES',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                letterSpacing: 3,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 32,
-                                shadows: [
-                                  const Shadow(
-                                    color: AppTheme.neonCyan,
-                                    blurRadius: 10,
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    letterSpacing: 3,
+                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'BitcountGridDouble',
+                                    fontSize: 32,
+                                    shadows: [
+                                      const Shadow(
+                                        color: AppTheme.neonCyan,
+                                        blurRadius: 10,
+                                      ),
+                                      const Shadow(
+                                        color: AppTheme.neonViolet,
+                                        blurRadius: 20,
+                                      ),
+                                    ],
                                   ),
-                                  const Shadow(
-                                    color: AppTheme.neonViolet,
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -182,29 +189,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
-                        // Small neon top badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppTheme.neonCyan.withOpacity(0.5)),
-                            borderRadius: BorderRadius.circular(20),
-                            color: AppTheme.neonCyan.withOpacity(0.05),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.sports_esports, size: 16, color: AppTheme.neonCyan),
-                              SizedBox(width: 4),
-                              Text(
-                                'V1.0',
-                                style: TextStyle(
-                                  color: AppTheme.neonCyan,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -216,41 +200,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final game = _games[index];
-                    
-                    // Stagger Animation
-                    final anim = Tween<double>(begin: 0.0, end: 1.0).animate(
-                      CurvedAnimation(
-                        parent: _staggerController,
-                        curve: Interval(
-                          (index / _games.length) * 0.5,
-                          1.0,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      ),
-                    );
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final game = _games[index];
 
-                    return AnimatedBuilder(
-                      animation: anim,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: anim.value,
-                          child: Transform.translate(
-                            offset: Offset(0, (1 - anim.value) * 50),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: InkWell(
-                          onTap: () => _showModeSelection(context, game),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            height: 110,
-                            decoration: AppTheme.neonBorderDecoration(color: game.color, borderWidth: 1.0),
+                  // Stagger Animation
+                  final anim = Tween<double>(begin: 0.0, end: 1.0).animate(
+                    CurvedAnimation(
+                      parent: _staggerController,
+                      curve: Interval(
+                        (index / _games.length) * 0.5,
+                        1.0,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                  );
+
+                  return AnimatedBuilder(
+                    animation: anim,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: anim.value,
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - anim.value) * 50),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: InkWell(
+                        onTap: () => _showModeSelection(context, game),
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedNeonContainer(
+                          color: game.color,
+                          borderWidth: 1.0,
+                          height: 110,
+                          child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
@@ -261,19 +246,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   decoration: BoxDecoration(
                                     color: game.color.withOpacity(0.1),
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: game.color.withOpacity(0.3), width: 1.5),
+                                    border: Border.all(
+                                      color: game.color.withOpacity(0.3),
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  child: Icon(game.icon, color: game.color, size: 32),
+                                  child: Icon(
+                                    game.icon,
+                                    color: game.color,
+                                    size: 32,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 // Text details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Flexible(
                                             child: Text(
@@ -289,10 +283,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
                                             decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(4),
-                                              color: game.color.withOpacity(0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              color: game.color.withOpacity(
+                                                0.15,
+                                              ),
                                             ),
                                             child: Text(
                                               game.category.toUpperCase(),
@@ -320,19 +320,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Icon(Icons.arrow_forward_ios, color: game.color.withOpacity(0.5), size: 16),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: game.color.withOpacity(0.5),
+                                  size: 16,
+                                ),
                               ],
                             ),
                           ),
                         ),
                       ),
-                    );
-                  },
-                  childCount: _games.length,
-                ),
+                    ),
+                  );
+                }, childCount: _games.length),
               ),
             ),
-            
+
             // Bottom spacing
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
@@ -344,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void _showModeSelection(BuildContext context, GameInfo game) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardBackground,
+      backgroundColor: AppTheme.forestDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -360,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   // Header
                   Row(
                     children: [
-                      Icon(game.icon, color: game.color, size: 28),
+                      Icon(game.icon, color: AppTheme.forestMint, size: 28),
                       const SizedBox(width: 12),
                       Flexible(
                         child: Text(
@@ -368,9 +371,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                            color: AppTheme.forestMint,
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ),
@@ -379,42 +383,88 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 8),
                   const Text(
                     'Choose how you want to play this session.',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                      color: AppTheme.forestAccent,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 24),
 
                   // Button 1: Pass & Play
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.person_pin, color: Colors.black),
-                    label: const Text('Pass & Play (Same Device)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: game.color,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  AnimatedNeonContainer(
+                    color: AppTheme.forestMint,
+                    backgroundColor: AppTheme.forestDeep,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Provider.of<NetworkManager>(
+                          context,
+                          listen: false,
+                        ).stop();
+                        Navigator.pushNamed(
+                          context,
+                          game.route,
+                          arguments: {'network': false},
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        alignment: Alignment.center,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_pin, color: AppTheme.forestMint),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Pass & Play (Same Device)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Setup provider mode: pass & play
-                      // Let's stop any active network connection just in case
-                      Provider.of<NetworkManager>(context, listen: false).stop();
-                      Navigator.pushNamed(context, game.route, arguments: {'network': false});
-                    },
                   ),
                   const SizedBox(height: 16),
 
                   // Button 2: Local Network Play
-                  OutlinedButton.icon(
-                    icon: Icon(Icons.wifi, color: game.color),
-                    label: Text('Local Network (2 Devices)', style: TextStyle(color: game.color, fontWeight: FontWeight.bold)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: game.color.withOpacity(0.8), width: 1.5),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  AnimatedNeonContainer(
+                    color: AppTheme.forestAccent,
+                    backgroundColor: AppTheme.forestDark,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showNetworkLobby(context, game);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        alignment: Alignment.center,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.wifi, color: AppTheme.forestMint),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Local Network (2 Devices)',
+                              style: TextStyle(
+                                color: AppTheme.forestMint,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showNetworkLobby(context, game);
-                    },
                   ),
                 ],
               ),
@@ -429,22 +479,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.cardBackground,
+      backgroundColor: AppTheme.forestDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         final ipController = TextEditingController();
+        bool isJoining = false;
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final netManager = Provider.of<NetworkManager>(context);
-            
+
             // Check if connection succeeded
             if (netManager.isConnected) {
               // Dismiss bottom sheet and push game
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, game.route, arguments: {'network': true});
+                Navigator.pushNamed(
+                  context,
+                  game.route,
+                  arguments: {'network': true},
+                );
               });
             }
 
@@ -470,9 +525,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
+                                color: AppTheme.forestMint,
+                                letterSpacing: 1.5,
                               ),
                             ),
                           ),
@@ -481,56 +537,79 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(AppTheme.neonCyan)),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(
+                                  AppTheme.forestMint,
+                                ),
+                              ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       const Text(
                         'Connect with another device on the same Wi-Fi network.',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                        style: TextStyle(
+                          color: AppTheme.forestAccent,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 20),
 
-                      if (netManager.role == NetworkRole.none) ...[
+                      if (netManager.role == NetworkRole.none && !isJoining) ...[
                         // Selection choices: Host or Join
                         Row(
                           children: [
                             // HOST Button (Mobile Only)
                             Expanded(
-                              child: InkWell(
-                                onTap: kIsWeb
-                                    ? null
-                                    : () async {
-                                        setSheetState(() {});
-                                        await netManager.hostGame(4040);
-                                        setSheetState(() {});
-                                      },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: kIsWeb ? Colors.grey.withOpacity(0.3) : AppTheme.neonCyan.withOpacity(0.5),
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: kIsWeb ? Colors.transparent : AppTheme.neonCyan.withOpacity(0.05),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.dns, color: kIsWeb ? Colors.grey : AppTheme.neonCyan),
-                                      const SizedBox(height: 8),
-                                      const Text('HOST GAME', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      if (kIsWeb)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 4.0),
-                                          child: Text(
-                                            'Mobile Only',
-                                            style: TextStyle(color: Colors.grey, fontSize: 9),
+                              child: AnimatedNeonContainer(
+                                color: kIsWeb ? Colors.grey.withOpacity(0.3) : AppTheme.forestAccent,
+                                backgroundColor: kIsWeb ? Colors.transparent : AppTheme.forestDark,
+                                borderRadius: 12,
+                                borderWidth: 1.5,
+                                child: InkWell(
+                                  onTap: kIsWeb
+                                      ? null
+                                      : () async {
+                                          setSheetState(() {});
+                                          await netManager.hostGame(4040);
+                                          setSheetState(() {});
+                                        },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    height: 100,
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.dns,
+                                          color: kIsWeb ? Colors.grey : AppTheme.forestMint,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'HOST GAME',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: kIsWeb ? Colors.grey : Colors.white,
                                           ),
                                         ),
-                                    ],
+                                        if (kIsWeb)
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 4.0,
+                                            ),
+                                            child: Text(
+                                              'Mobile Only',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -538,28 +617,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             const SizedBox(width: 16),
                             // JOIN Button
                             Expanded(
-                              child: InkWell(
-                                onTap: () {
-                                  setSheetState(() {
-                                    // Transition to IP address entry
-                                    // Let's set a marker or state inside netManager or locally
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AppTheme.neonGreen.withOpacity(0.5)),
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: AppTheme.neonGreen.withOpacity(0.05),
-                                  ),
-                                  child: const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.wifi_find, color: AppTheme.neonGreen),
-                                      const SizedBox(height: 8),
-                                      const Text('JOIN GAME', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    ],
+                              child: AnimatedNeonContainer(
+                                color: AppTheme.forestMint,
+                                backgroundColor: AppTheme.forestDeep,
+                                borderRadius: 12,
+                                borderWidth: 1.5,
+                                child: InkWell(
+                                  onTap: () {
+                                    setSheetState(() {
+                                      isJoining = true;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    height: 100,
+                                    alignment: Alignment.center,
+                                    child: const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.wifi_find,
+                                          color: AppTheme.forestMint,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'JOIN GAME',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -568,101 +658,172 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ] else if (netManager.role == NetworkRole.host) ...[
                         // Host Lobby State
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppTheme.neonCyan.withOpacity(0.2)),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.dns, color: AppTheme.neonCyan, size: 36),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Waiting for player to connect...',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Your Local IP:', style: TextStyle(color: AppTheme.textSecondary)),
-                                  Text(
-                                    netManager.localIp ?? 'Fetching...',
-                                    style: const TextStyle(
-                                      color: AppTheme.neonCyan,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                        AnimatedNeonContainer(
+                          color: AppTheme.forestAccent,
+                          backgroundColor: AppTheme.forestDeep,
+                          borderRadius: 12,
+                          borderWidth: 1.5,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.dns,
+                                  color: AppTheme.forestMint,
+                                  size: 36,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Waiting for player to connect...',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Port:', style: TextStyle(color: AppTheme.textSecondary)),
-                                  Text('4040', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Your Local IP:',
+                                      style: TextStyle(
+                                        color: AppTheme.forestMint,
+                                      ),
+                                    ),
+                                    Text(
+                                      netManager.localIp ?? 'Fetching...',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                const Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Port:',
+                                      style: TextStyle(
+                                        color: AppTheme.forestMint,
+                                      ),
+                                    ),
+                                    Text(
+                                      '4040',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.neonPink,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                        AnimatedNeonContainer(
+                          color: Colors.redAccent,
+                          backgroundColor: AppTheme.forestDark,
+                          borderRadius: 12,
+                          borderWidth: 1.5,
+                          child: InkWell(
+                            onTap: () async {
+                              await netManager.stop();
+                              setSheetState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Cancel Hosting',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
                           ),
-                          onPressed: () async {
-                            await netManager.stop();
-                            setSheetState(() {});
-                          },
-                          child: const Text('Cancel Hosting', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ] else ...[
                         // Join Lobby / IP Entry
                         TextField(
                           controller: ipController,
+                          cursorColor: AppTheme.forestMint,
+                          style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             labelText: 'Enter Host IP Address',
-                            labelStyle: const TextStyle(color: AppTheme.neonGreen),
+                            labelStyle: const TextStyle(
+                              color: AppTheme.forestMint,
+                            ),
                             hintText: 'e.g. 192.168.1.100',
+                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                             enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: AppTheme.neonGreen.withOpacity(0.4)),
+                              borderSide: const BorderSide(
+                                color: AppTheme.forestAccent,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: AppTheme.neonGreen),
+                              borderSide: const BorderSide(
+                                color: AppTheme.forestMint,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          keyboardType: TextInputType.values.firstWhere((element) => true, orElse: () => TextInputType.number), // fallback
+                          keyboardType: TextInputType.values.firstWhere(
+                            (element) => true,
+                            orElse: () => TextInputType.number,
+                          ), // fallback
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.neonGreen,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                        AnimatedNeonContainer(
+                          color: AppTheme.forestMint,
+                          backgroundColor: AppTheme.forestDeep,
+                          borderRadius: 12,
+                          borderWidth: 1.5,
+                          child: InkWell(
+                            onTap: () async {
+                              final ip = ipController.text.trim();
+                              if (ip.isNotEmpty) {
+                                setSheetState(() {});
+                                await netManager.joinGame(ip, 4040);
+                                setSheetState(() {});
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Connect',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
                           ),
-                          onPressed: () async {
-                            final ip = ipController.text.trim();
-                            if (ip.isNotEmpty) {
-                              setSheetState(() {});
-                              await netManager.joinGame(ip, 4040);
-                              setSheetState(() {});
-                            }
-                          },
-                          child: const Text('Connect', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: () async {
                             await netManager.stop();
-                            setSheetState(() {});
+                            setSheetState(() {
+                              isJoining = false;
+                            });
                           },
-                          child: const Text('Back', style: TextStyle(color: AppTheme.textSecondary)),
+                          child: const Text(
+                            'Back',
+                            style: TextStyle(color: AppTheme.forestAccent, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ],

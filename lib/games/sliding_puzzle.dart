@@ -4,6 +4,7 @@ import '../../providers/sliding_puzzle_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class SlidingPuzzleScreen extends StatefulWidget {
   const SlidingPuzzleScreen({super.key});
@@ -62,15 +63,15 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
 
     Widget statusWidget;
     if (provider.isWon) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text('YOU SOLVED IT!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       );
     } else if (provider.isOpponentWon) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonPink,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
         child: const Text('OPPONENT WON THE RACE!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       );
     } else {
@@ -135,13 +136,10 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
                                 netManager.sendMessage('sp_won', {});
                               }
                             },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              decoration: AppTheme.neonBorderDecoration(
-                                color: neonColor,
-                                borderWidth: 1.5,
-                                borderRadius: 12,
-                              ),
+                            child: AnimatedNeonContainer(
+                              color: neonColor,
+                              borderWidth: 1.5,
+                              borderRadius: 12,
                               alignment: Alignment.center,
                               child: Text(
                                 '$tileVal',

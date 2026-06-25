@@ -8,7 +8,13 @@ class AppTheme {
   static const Color neonGreen = Color(0xFF00FF66);
   static const Color neonOrange = Color(0xFFFF5E00);
   static const Color neonPink = Color(0xFFFF007F);
-  
+
+  // Redesigned Modal Green Palette (091413 / 285A48 / 408A71 / B0E4CC)
+  static const Color forestDark = Color(0xFF091413);
+  static const Color forestDeep = Color(0xFF285A48);
+  static const Color forestAccent = Color(0xFF408A71);
+  static const Color forestMint = Color(0xFFB0E4CC);
+
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFF9095A9);
 

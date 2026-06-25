@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/network_manager.dart';
 import '../theme/app_theme.dart';
+import 'animated_neon_container.dart';
 
 class GameShell extends StatelessWidget {
   final String title;
@@ -35,19 +36,80 @@ class GameShell extends StatelessWidget {
             if (netManager.isConnected) {
               final leave = await showDialog<bool>(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Leave Match?'),
-                      content: const Text('This will disconnect the local network game session.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Cancel'),
+                    builder: (context) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      child: AnimatedNeonContainer(
+                        color: AppTheme.forestMint,
+                        backgroundColor: AppTheme.forestDark,
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Leave Match?',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.forestMint,
+                                letterSpacing: 1.2,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'This will disconnect the local network game session.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: const Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: AppTheme.forestAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: AnimatedNeonContainer(
+                                    color: Colors.redAccent,
+                                    backgroundColor: AppTheme.forestDark,
+                                    borderRadius: 8,
+                                    borderWidth: 1.2,
+                                    child: InkWell(
+                                      onTap: () => Navigator.of(context).pop(true),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        alignment: Alignment.center,
+                                        child: const Text(
+                                          'Leave',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Leave', style: TextStyle(color: AppTheme.neonPink)),
-                        ),
-                      ],
+                      ),
                     ),
                   ) ??
                   false;
@@ -141,28 +203,72 @@ class GameShell extends StatelessWidget {
   void _showRules(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.menu_book, color: AppTheme.neonGreen),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('How to Play: $title'),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            rules,
-            style: const TextStyle(height: 1.5),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: AnimatedNeonContainer(
+          color: AppTheme.forestMint,
+          backgroundColor: AppTheme.forestDark,
+          borderRadius: 20,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.menu_book, color: AppTheme.forestMint),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'How to Play: $title',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.forestMint,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    rules,
+                    style: const TextStyle(
+                      height: 1.5,
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              AnimatedNeonContainer(
+                color: AppTheme.forestMint,
+                backgroundColor: AppTheme.forestDeep,
+                borderRadius: 10,
+                borderWidth: 1.2,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Got it!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it!', style: TextStyle(color: AppTheme.neonCyan)),
-          ),
-        ],
       ),
     );
   }

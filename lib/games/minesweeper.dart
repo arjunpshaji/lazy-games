@@ -4,6 +4,7 @@ import '../../providers/minesweeper_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class MinesweeperScreen extends StatefulWidget {
   const MinesweeperScreen({super.key});
@@ -88,15 +89,15 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
 
     Widget statusWidget;
     if (provider.isGameOver) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonPink,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
         child: const Text('BOOM! GAME OVER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       );
     } else if (provider.isWon) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text('MINES CLEARED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       );
     } else {

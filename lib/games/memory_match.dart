@@ -5,6 +5,7 @@ import '../../providers/memory_match_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class MemoryMatchScreen extends StatefulWidget {
   const MemoryMatchScreen({super.key});
@@ -82,9 +83,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           winnerText = win1 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
         }
       }
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
       );
     } else {
@@ -96,11 +97,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN" : "PLAYER 2'S TURN";
       }
 
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
-        ),
         child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       );
     }

@@ -5,6 +5,7 @@ import '../../providers/game_2048_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class Game2048Screen extends StatefulWidget {
   const Game2048Screen({super.key});
@@ -93,17 +94,17 @@ class _Game2048ScreenState extends State<Game2048Screen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (provider.isGameOver)
-                Container(
+                AnimatedNeonContainer(
+                  color: AppTheme.neonPink,
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
                   child: const Text('GAME OVER!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
                 ),
               if (provider.isWon)
-                Container(
+                AnimatedNeonContainer(
+                  color: AppTheme.neonGreen,
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
                   child: const Text('YOU REACHED 2048!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
                 ),
 
@@ -174,9 +175,10 @@ class _Game2048ScreenState extends State<Game2048Screen> {
   }
 
   Widget _buildScoreBox(String label, int val, Color color) {
-    return Container(
+    return AnimatedNeonContainer(
+      color: color,
+      borderRadius: 12,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: AppTheme.neonBorderDecoration(color: color, borderRadius: 12),
       child: Column(
         children: [
           Text(label, style: TextStyle(color: color.withOpacity(0.8), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),

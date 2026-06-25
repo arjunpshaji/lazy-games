@@ -4,6 +4,7 @@ import '../../providers/tic_tac_toe_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/animated_neon_container.dart';
 
 class TicTacToeScreen extends StatefulWidget {
   const TicTacToeScreen({super.key});
@@ -52,11 +53,9 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
     // Dynamic Turn status text
     Widget statusWidget;
     if (provider.winner != null) {
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.winner == 'Draw' ? Colors.grey : AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.winner == 'Draw' ? Colors.grey : AppTheme.neonGreen,
-        ),
         child: Text(
           provider.winner == 'Draw' ? "MATCH DRAW!" : "PLAYER ${provider.winner} WINS!",
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
@@ -69,11 +68,9 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
           ? (isMyTurn ? "YOUR TURN ($currentSymbol)" : "OPPONENT'S TURN ($currentSymbol)")
           : "TURN: PLAYER $currentSymbol";
 
-      statusWidget = Container(
+      statusWidget = AnimatedNeonContainer(
+        color: provider.isXTurn ? AppTheme.neonCyan : AppTheme.neonViolet,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isXTurn ? AppTheme.neonCyan : AppTheme.neonViolet,
-        ),
         child: Text(
           label,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
