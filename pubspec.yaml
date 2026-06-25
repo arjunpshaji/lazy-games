@@ -37,6 +37,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +67,6 @@ flutter:
     - assets/png/
     - assets/lottie/
     - assets/images/
-    - assets/fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -74,134 +74,5 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  fonts:
-    - family: BitcountGridDouble
-      fonts:
-        - asset: assets/fonts/BitcountGridDouble-Regular.ttf
-        - asset: assets/fonts/BitcountGridDouble-Thin.ttf
-          weight: 100
-        - asset: assets/fonts/BitcountGridDouble-ExtraLight.ttf
-          weight: 200
-        - asset: assets/fonts/BitcountGridDouble-Light.ttf
-          weight: 300
-        - asset: assets/fonts/BitcountGridDouble-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/BitcountGridDouble-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/BitcountGridDouble-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/BitcountGridDouble-ExtraBold.ttf
-          weight: 800
-        - asset: assets/fonts/BitcountGridDouble-Black.ttf
-          weight: 900
 
-    - family: BitcountGridDouble_Cursive
-      fonts:
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Regular.ttf
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Thin.ttf
-          weight: 100
-        - asset: assets/fonts/BitcountGridDouble_Cursive-ExtraLight.ttf
-          weight: 200
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Light.ttf
-          weight: 300
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/BitcountGridDouble_Cursive-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/BitcountGridDouble_Cursive-ExtraBold.ttf
-          weight: 800
-        - asset: assets/fonts/BitcountGridDouble_Cursive-Black.ttf
-          weight: 900
-
-    - family: BitcountGridDouble_Roman
-      fonts:
-        - asset: assets/fonts/BitcountGridDouble_Roman-Regular.ttf
-        - asset: assets/fonts/BitcountGridDouble_Roman-Thin.ttf
-          weight: 100
-        - asset: assets/fonts/BitcountGridDouble_Roman-ExtraLight.ttf
-          weight: 200
-        - asset: assets/fonts/BitcountGridDouble_Roman-Light.ttf
-          weight: 300
-        - asset: assets/fonts/BitcountGridDouble_Roman-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/BitcountGridDouble_Roman-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/BitcountGridDouble_Roman-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/BitcountGridDouble_Roman-ExtraBold.ttf
-          weight: 800
-        - asset: assets/fonts/BitcountGridDouble_Roman-Black.ttf
-          weight: 900
-
-    - family: Caveat
-      fonts:
-        - asset: assets/fonts/Caveat-Regular.ttf
-        - asset: assets/fonts/Caveat-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Caveat-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Caveat-Bold.ttf
-          weight: 700
-
-    - family: Fredoka
-      fonts:
-        - asset: assets/fonts/Fredoka-Regular.ttf
-        - asset: assets/fonts/Fredoka-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Fredoka-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Fredoka-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Fredoka-Bold.ttf
-          weight: 700
-
-    - family: Fredoka_Condensed
-      fonts:
-        - asset: assets/fonts/Fredoka_Condensed-Regular.ttf
-        - asset: assets/fonts/Fredoka_Condensed-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Fredoka_Condensed-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Fredoka_Condensed-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Fredoka_Condensed-Bold.ttf
-          weight: 700
-
-    - family: Fredoka_Expanded
-      fonts:
-        - asset: assets/fonts/Fredoka_Expanded-Regular.ttf
-        - asset: assets/fonts/Fredoka_Expanded-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Fredoka_Expanded-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Fredoka_Expanded-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Fredoka_Expanded-Bold.ttf
-          weight: 700
-
-    - family: Fredoka_SemiCondensed
-      fonts:
-        - asset: assets/fonts/Fredoka_SemiCondensed-Regular.ttf
-        - asset: assets/fonts/Fredoka_SemiCondensed-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Fredoka_SemiCondensed-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Fredoka_SemiCondensed-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Fredoka_SemiCondensed-Bold.ttf
-          weight: 700
-
-    - family: Fredoka_SemiExpanded
-      fonts:
-        - asset: assets/fonts/Fredoka_SemiExpanded-Regular.ttf
-        - asset: assets/fonts/Fredoka_SemiExpanded-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Fredoka_SemiExpanded-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Fredoka_SemiExpanded-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Fredoka_SemiExpanded-Bold.ttf
-          weight: 700
 

@@ -4,6 +4,7 @@ import '../../providers/sudoku_provider.dart';
 import '../../services/network_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/glass_container.dart';
 
 class SudokuScreen extends StatefulWidget {
   const SudokuScreen({super.key});
@@ -27,7 +28,6 @@ class _SudokuScreenState extends State<SudokuScreen> {
       final isNetwork = args?['network'] ?? false;
 
       if (isNetwork) {
-        // Setup listener
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'sudoku_setup') {
             final puzzle = List<int>.from(packet['data']['puzzle']);
@@ -71,17 +71,28 @@ class _SudokuScreenState extends State<SudokuScreen> {
 
     Widget statusWidget;
     if (provider.isLoading) {
-      statusWidget = const Text('GENERATING BOARD IN BACKGROUND...', style: TextStyle(color: AppTheme.neonCyan));
-    } else if (provider.isWinner) {
-      statusWidget = Container(
+      statusWidget = GlassContainer(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
+        borderColor: AppTheme.neonCyan.withOpacity(0.4),
+        borderRadius: 20,
+        child: const Text('GENERATING BOARD IN BACKGROUND...', style: TextStyle(color: AppTheme.neonCyan, fontWeight: FontWeight.bold)),
+      );
+    } else if (provider.isWinner) {
+      statusWidget = GlassContainer(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        borderColor: AppTheme.neonGreen,
+        borderRadius: 20,
         child: const Text('SUDOKU SOLVED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
       );
     } else {
-      statusWidget = Text(
-        'Difficulty: ${provider.difficulty}',
-        style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+      statusWidget = GlassContainer(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        borderColor: AppTheme.neonGreen.withOpacity(0.4),
+        borderRadius: 20,
+        child: Text(
+          'Difficulty: ${provider.difficulty}',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       );
     }
 
@@ -109,7 +120,7 @@ class _SudokuScreenState extends State<SudokuScreen> {
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Difficulty Selectors (Local only)
+                // Difficulty Selectors (Local only) - styled as glass pills
                 if (!isNetwork) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -117,13 +128,25 @@ class _SudokuScreenState extends State<SudokuScreen> {
                       final active = provider.difficulty == diff;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                        child: ChoiceChip(
-                          label: Text(diff),
-                          selected: active,
-                          selectedColor: AppTheme.neonGreen.withOpacity(0.2),
-                          checkmarkColor: AppTheme.neonGreen,
-                          labelStyle: TextStyle(color: active ? AppTheme.neonGreen : Colors.white70),
-                          onSelected: (_) => provider.generateNewGame(difficulty: diff),
+                        child: GestureDetector(
+                          onTap: () => provider.generateNewGame(difficulty: diff),
+                          child: GlassContainer(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            borderRadius: 24, // rounded-xl (24px) for controls
+                            borderColor: active
+                                ? AppTheme.neonGreen.withOpacity(0.6)
+                                : Colors.white.withOpacity(0.08),
+                            fillColor: active
+                                ? AppTheme.neonGreen.withOpacity(0.15)
+                                : Colors.white.withOpacity(0.02),
+                            child: Text(
+                              diff,
+                              style: AppTheme.labelCaps.copyWith(
+                                color: active ? Colors.white : AppTheme.textSecondary,
+                                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
                         ),
                       );
                     }).toList(),
@@ -131,109 +154,119 @@ class _SudokuScreenState extends State<SudokuScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // 9x9 Grid Board
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white, width: 2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 9,
+                // 9x9 Grid Board wrapped in a frosted glass panel
+                GlassContainer(
+                  padding: const EdgeInsets.all(12),
+                  borderColor: Colors.white.withOpacity(0.08),
+                  borderRadius: 16, // rounded-lg (16px) for base cards
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1.5),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      itemCount: 81,
-                      itemBuilder: (context, index) {
-                        final row = index ~/ 9;
-                        final col = index % 9;
-                        final val = provider.board[index];
-                        final isStarting = provider.puzzle[index] != 0;
-                        final isSelected = provider.selectedCell == index;
-                        final hasConflict = provider.hasConflict(index);
+                      clipBehavior: Clip.antiAlias,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 9,
+                        ),
+                        itemCount: 81,
+                        itemBuilder: (context, index) {
+                          final row = index ~/ 9;
+                          final col = index % 9;
+                          final val = provider.board[index];
+                          final isStarting = provider.puzzle[index] != 0;
+                          final isSelected = provider.selectedCell == index;
+                          final hasConflict = provider.hasConflict(index);
 
-                        // 3x3 thick borders styling
-                        double borderLeft = (col % 3 == 0 && col > 0) ? 1.5 : 0.5;
-                        double borderTop = (row % 3 == 0 && row > 0) ? 1.5 : 0.5;
+                          // 3x3 thick borders styling
+                          double borderLeft = (col % 3 == 0 && col > 0) ? 1.5 : 0.5;
+                          double borderTop = (row % 3 == 0 && row > 0) ? 1.5 : 0.5;
 
-                        return GestureDetector(
-                          onTap: () => provider.selectCell(index),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.neonCyan.withOpacity(0.25)
-                                  : isStarting
-                                      ? Colors.white.withOpacity(0.04)
-                                      : AppTheme.cardBackground,
-                              border: Border(
-                                left: BorderSide(color: col % 3 == 0 && col > 0 ? Colors.white70 : Colors.white24, width: borderLeft),
-                                top: BorderSide(color: row % 3 == 0 && row > 0 ? Colors.white70 : Colors.white24, width: borderTop),
-                                right: const BorderSide(color: Colors.white24, width: 0.5),
-                                bottom: const BorderSide(color: Colors.white24, width: 0.5),
+                          return GestureDetector(
+                            onTap: () => provider.selectCell(index),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.neonCyan.withOpacity(0.2)
+                                    : isStarting
+                                        ? Colors.white.withOpacity(0.02)
+                                        : Colors.transparent,
+                                border: Border(
+                                  left: BorderSide(color: col % 3 == 0 && col > 0 ? Colors.white60 : Colors.white12, width: borderLeft),
+                                  top: BorderSide(color: row % 3 == 0 && row > 0 ? Colors.white60 : Colors.white12, width: borderTop),
+                                  right: const BorderSide(color: Colors.white12, width: 0.5),
+                                  bottom: const BorderSide(color: Colors.white12, width: 0.5),
+                                ),
+                              ),
+                              child: Center(
+                                child: hasConflict
+                                    ? Container(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: AppTheme.neonPink, width: 1.5),
+                                          borderRadius: BorderRadius.circular(4),
+                                          color: AppTheme.neonPink.withOpacity(0.12),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: _buildCellValue(val, provider.notes[index], isStarting),
+                                      )
+                                    : _buildCellValue(val, provider.notes[index], isStarting),
                               ),
                             ),
-                            child: Center(
-                              child: hasConflict
-                                  ? Container(
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: AppTheme.neonPink, width: 1.5),
-                                        borderRadius: BorderRadius.circular(4),
-                                        color: AppTheme.neonPink.withOpacity(0.1),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: _buildCellValue(val, provider.notes[index], isStarting),
-                                    )
-                                  : _buildCellValue(val, provider.notes[index], isStarting),
-                            ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Controls & Pad
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // Note toggle
-                    IconButton(
-                      icon: Icon(
-                        provider.isNoteMode ? Icons.edit : Icons.edit_off,
-                        color: provider.isNoteMode ? AppTheme.neonCyan : AppTheme.textSecondary,
+                // Controls & Pad wrapped in a glass container toolbar
+                GlassContainer(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  borderRadius: 24, // rounded-xl (24px) for controls
+                  borderColor: Colors.white.withOpacity(0.08),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      // Note toggle
+                      IconButton(
+                        icon: Icon(
+                          provider.isNoteMode ? Icons.edit : Icons.edit_off,
+                          color: provider.isNoteMode ? AppTheme.neonCyan : AppTheme.textSecondary,
+                        ),
+                        iconSize: 28,
+                        onPressed: provider.toggleNoteMode,
+                        tooltip: 'Toggle Note Mode',
                       ),
-                      iconSize: 28,
-                      onPressed: provider.toggleNoteMode,
-                      tooltip: 'Toggle Note Mode',
-                    ),
-                    // Delete button
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppTheme.neonPink),
-                      iconSize: 28,
-                      onPressed: () {
-                        final cellIdx = provider.selectedCell;
-                        final success = provider.deleteNumber();
-                        if (success && isNetwork) {
-                          netManager.sendMessage('sudoku_delete', {'index': cellIdx});
-                        }
-                      },
-                      tooltip: 'Delete cell value',
-                    ),
-                  ],
+                      // Delete button
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppTheme.neonPink),
+                        iconSize: 28,
+                        onPressed: () {
+                          final cellIdx = provider.selectedCell;
+                          final success = provider.deleteNumber();
+                          if (success && isNetwork) {
+                            netManager.sendMessage('sudoku_delete', {'index': cellIdx});
+                          }
+                        },
+                        tooltip: 'Delete cell value',
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // Number Pad (1-9)
+                // Number Pad (1-9) using Frosted glass key buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(9, (i) {
                     final num = i + 1;
                     return Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         child: InkWell(
                           onTap: () {
                             final cellIdx = provider.selectedCell;
@@ -247,15 +280,24 @@ class _SudokuScreenState extends State<SudokuScreen> {
                               });
                             }
                           },
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(24),
                           child: AspectRatio(
                             aspectRatio: 1,
-                            child: Container(
-                              decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen, borderWidth: 1.0, borderRadius: 8),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '$num',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            child: GlassContainer(
+                              borderRadius: 24, // rounded-xl (24px) for controls
+                              borderWidth: 1.0,
+                              borderColor: AppTheme.neonGreen.withOpacity(0.4),
+                              fillColor: Colors.white.withOpacity(0.02),
+                              padding: EdgeInsets.zero,
+                              child: Center(
+                                child: Text(
+                                  '$num',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -277,6 +319,9 @@ class _SudokuScreenState extends State<SudokuScreen> {
           fontSize: 18,
           fontWeight: isStarting ? FontWeight.w900 : FontWeight.bold,
           color: isStarting ? Colors.white : AppTheme.neonCyan,
+          shadows: isStarting ? [] : [
+            Shadow(color: AppTheme.neonCyan.withOpacity(0.8), blurRadius: 6),
+          ],
         ),
       );
     }
@@ -296,7 +341,11 @@ class _SudokuScreenState extends State<SudokuScreen> {
           return Center(
             child: Text(
               hasNote ? '$noteVal' : '',
-              style: TextStyle(fontSize: 8, color: AppTheme.neonGreen.withOpacity(0.8), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 8,
+                color: AppTheme.neonGreen.withOpacity(0.8),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           );
         },
