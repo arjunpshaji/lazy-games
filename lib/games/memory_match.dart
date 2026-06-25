@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/memory_match_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -105,10 +106,22 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       );
     }
 
+    final hasWinner = provider.isGameOver && provider.player1Score != provider.player2Score;
+    final win1 = provider.player1Score > provider.player2Score;
+    final iWon = provider.isNetworkGame &&
+        ((provider.myRole == 'host' && win1) || (provider.myRole == 'client' && !win1));
+
+    final isWinner = provider.isNetworkGame ? (provider.isGameOver && iWon) : hasWinner;
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (win1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!');
+
     return GameShell(
       title: 'Memory Match',
       rules: 'Flip cards and find matching pairs. Find a match to earn another turn. Complete all pairs to finish the game.',
       statusWidget: statusWidget,
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
       onReset: provider.isNetworkGame && provider.myRole != 'host'
           ? null
           : () {
@@ -161,6 +174,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                   return GestureDetector(
                     onTap: () async {
                       if (provider.isMyTurn && !isFlipped && !isMatched && !provider.isWaiting) {
+                        AudioService.instance.cardFlip();
                         final success = await provider.handleCardTap(index);
                         if (success && provider.isNetworkGame) {
                           netManager.sendMessage('memory_tap', {'index': index});

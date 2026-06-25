@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/tic_tac_toe_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 import '../../widgets/glass_container.dart';
@@ -79,10 +80,19 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       );
     }
 
+    final isWinner = provider.winner != null &&
+        provider.winner != 'Draw' &&
+        (!provider.isNetworkGame || provider.winner == provider.mySymbol);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : 'PLAYER ${provider.winner} WINS!';
+
     return GameShell(
       title: 'Tic Tac Toe',
       rules: 'Take turns placing X or O. Get 3 in a row horizontally, vertically, or diagonally to win. Play locally or sync moves with a friend over the local network.',
       statusWidget: statusWidget,
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
       onReset: () {
         provider.resetBoard();
         if (provider.isNetworkGame) {
@@ -132,8 +142,15 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                     onTap: () {
                       if (provider.isMyTurn && provider.board[index] == '' && provider.winner == null) {
                         final success = provider.makeMove(index);
-                        if (success && provider.isNetworkGame) {
-                          netManager.sendMessage('ttt_move', {'index': index});
+                        if (success) {
+                          if (provider.winner == 'Draw') {
+                            AudioService.instance.draw();
+                          } else {
+                            AudioService.instance.gameMove();
+                          }
+                          if (provider.isNetworkGame) {
+                            netManager.sendMessage('ttt_move', {'index': index});
+                          }
                         }
                       }
                     },

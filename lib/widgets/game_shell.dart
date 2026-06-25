@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/network_manager.dart';
+import '../services/audio_service.dart';
 import '../theme/app_theme.dart';
 import 'liquid_glass_background.dart';
 import 'glass_button.dart';
 import 'glass_container.dart';
+import 'win_overlay.dart';
 
-class GameShell extends StatelessWidget {
+class GameShell extends StatefulWidget {
   final String title;
   final Widget child;
   final List<Widget>? actions;
   final String rules;
   final Widget? statusWidget;
   final VoidCallback? onReset;
+  final bool isWinner;
+  final String? winTitle;
+  final String? winSubtitle;
 
   const GameShell({
     super.key,
@@ -22,7 +27,31 @@ class GameShell extends StatelessWidget {
     this.actions,
     this.statusWidget,
     this.onReset,
+    this.isWinner = false,
+    this.winTitle,
+    this.winSubtitle,
   });
+
+  @override
+  State<GameShell> createState() => _GameShellState();
+}
+
+class _GameShellState extends State<GameShell> {
+  bool _didFireWinSound = false;
+
+  @override
+  void didUpdateWidget(covariant GameShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fire win sound exactly once when isWinner transitions to true.
+    if (widget.isWinner && !oldWidget.isWinner && !_didFireWinSound) {
+      _didFireWinSound = true;
+      AudioService.instance.win();
+    }
+    // Reset flag when game resets.
+    if (!widget.isWinner && oldWidget.isWinner) {
+      _didFireWinSound = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +123,7 @@ class GameShell extends StatelessWidget {
           },
         ),
         title: Text(
-          title,
+          widget.title,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontSize: 22,
             letterSpacing: 2,
@@ -112,12 +141,12 @@ class GameShell extends StatelessWidget {
             icon: const Icon(Icons.info_outline, color: AppTheme.neonGreen),
             onPressed: () => _showRules(context),
           ),
-          if (onReset != null)
+          if (widget.onReset != null)
             IconButton(
               icon: const Icon(Icons.refresh, color: AppTheme.neonCyan),
-              onPressed: onReset,
+              onPressed: widget.onReset,
             ),
-          ...?actions,
+          ...?widget.actions,
         ],
       ),
       body: Stack(
@@ -150,10 +179,10 @@ class GameShell extends StatelessWidget {
                   ),
                 
                 // Status area
-                if (statusWidget != null)
+                if (widget.statusWidget != null)
                   Padding(
                     padding: const EdgeInsets.all(12.0),
-                    child: statusWidget!,
+                    child: widget.statusWidget!,
                   ),
                 
                 // Main game area
@@ -163,13 +192,19 @@ class GameShell extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 500),
-                        child: child,
+                        child: widget.child,
                       ),
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+          WinOverlay(
+            isVisible: widget.isWinner,
+            title: widget.winTitle ?? 'CONGRATULATIONS!',
+            subtitle: widget.winSubtitle ?? 'YOU WON!',
+            onPlayAgain: widget.onReset,
           ),
         ],
       ),
@@ -198,7 +233,7 @@ class GameShell extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'How to Play: $title',
+                      'How to Play: ${widget.title}',
                       style: AppTheme.headlineMd.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -209,7 +244,7 @@ class GameShell extends StatelessWidget {
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Text(
-                    rules,
+                    widget.rules,
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary, height: 1.5),
                   ),
                 ),

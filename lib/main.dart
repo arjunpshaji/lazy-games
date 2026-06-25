@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 // Theme & Services
 import 'theme/app_theme.dart';
 import 'services/network_manager.dart';
+import 'services/audio_service.dart';
 
 // Screens
 import 'screens/splash_screen.dart';
@@ -29,7 +30,9 @@ import 'games/sliding_puzzle.dart';
 import 'providers/checkers_provider.dart';
 import 'games/checkers.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AudioService.instance.init();
   runApp(
     MultiProvider(
       providers: [

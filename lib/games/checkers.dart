@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/checkers_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -81,10 +82,19 @@ class _CheckersScreenState extends State<CheckersScreen> {
       );
     }
 
+    final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
+                 (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner = provider.winner != 0 && (!provider.isNetworkGame || iWon);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (provider.winner == 1 ? 'PINK WINS!' : 'CYAN WINS!');
+
     return GameShell(
       title: 'Checkers',
       rules: 'Select your pieces and move diagonally forward on dark squares. Capture opponent pieces by jumping over them. Reach the end to get crowned King!',
       statusWidget: statusWidget,
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
       onReset: provider.isNetworkGame && provider.myRole != 'host'
           ? null
           : () {
@@ -146,11 +156,14 @@ class _CheckersScreenState extends State<CheckersScreen> {
                           if (isValidMove) {
                             final fromIdx = provider.selectedPiece;
                             final success = provider.makeMove(index);
-                            if (success && provider.isNetworkGame) {
-                              netManager.sendMessage('checkers_move', {
-                                'from': fromIdx,
-                                'to': index,
-                              });
+                            if (success) {
+                              AudioService.instance.gameMove();
+                              if (provider.isNetworkGame) {
+                                netManager.sendMessage('checkers_move', {
+                                  'from': fromIdx,
+                                  'to': index,
+                                });
+                              }
                             }
                           } else {
                             provider.selectPiece(index);

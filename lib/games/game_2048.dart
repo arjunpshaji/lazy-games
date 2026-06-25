@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_2048_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -44,6 +45,7 @@ class _Game2048ScreenState extends State<Game2048Screen> {
 
   void _onSwipe(String direction) {
     _provider.handleSwipe(direction);
+    AudioService.instance.gameMove();
     final netManager = Provider.of<NetworkManager>(context, listen: false);
     if (netManager.isConnected) {
       netManager.sendMessage('2048_score', {'score': _provider.score});
@@ -83,6 +85,8 @@ class _Game2048ScreenState extends State<Game2048Screen> {
           title: '2048',
           rules: 'Swipe up, down, left, or right (or use Keyboard Arrow Keys) to slide tiles. Matching tiles merge and double. Reach 2048 to win!',
           statusWidget: _buildScoreHeader(provider, netManager.isConnected),
+          isWinner: provider.isWon,
+          winSubtitle: 'YOU REACHED 2048!',
           onReset: () {
             provider.setupGame();
             if (netManager.isConnected) {

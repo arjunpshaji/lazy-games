@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/liquid_glass_background.dart';
 import '../widgets/glass_button.dart';
+import '../widgets/jumping_letters_text.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class GameInfo {
@@ -16,6 +17,7 @@ class GameInfo {
   final IconData icon;
   final Color color;
   final String route;
+  final bool supportsMultiplayer;
 
   GameInfo({
     required this.id,
@@ -25,6 +27,7 @@ class GameInfo {
     required this.icon,
     required this.color,
     required this.route,
+    required this.supportsMultiplayer,
   });
 }
 
@@ -35,9 +38,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _staggerController;
+  late AnimationController _bounceController;
+  late ScrollController _scrollController;
+  bool _showScrollIndicator = false;
   String _selectedCategory = 'All';
   final List<String> _categories = ['All', 'Logic', 'Classic', 'Strategy'];
 
@@ -50,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.grid_3x3,
       color: AppTheme.neonCyan,
       route: '/tic_tac_toe',
+      supportsMultiplayer: true,
     ),
     GameInfo(
       id: 'sudoku',
@@ -59,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.grid_on,
       color: AppTheme.neonGreen,
       route: '/sudoku',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: '2048',
@@ -68,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.grid_view,
       color: AppTheme.neonOrange,
       route: '/2048',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: 'memory_match',
@@ -77,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.style,
       color: AppTheme.neonPink,
       route: '/memory_match',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: 'connect_four',
@@ -86,6 +95,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.view_column,
       color: AppTheme.neonCyan,
       route: '/connect_four',
+      supportsMultiplayer: true,
     ),
     GameInfo(
       id: 'minesweeper',
@@ -95,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.dangerous,
       color: AppTheme.neonPink,
       route: '/minesweeper',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: 'word_search',
@@ -104,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.translate,
       color: AppTheme.neonGreen,
       route: '/word_search',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: 'sliding_puzzle',
@@ -113,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.extension,
       color: AppTheme.neonOrange,
       route: '/sliding_puzzle',
+      supportsMultiplayer: false,
     ),
     GameInfo(
       id: 'checkers',
@@ -122,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen>
       icon: Icons.casino,
       color: AppTheme.neonViolet,
       route: '/checkers',
+      supportsMultiplayer: true,
     ),
   ];
 
@@ -133,12 +147,50 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 800),
     );
     _staggerController.forward();
+
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
+
+    _checkScrollable();
   }
 
   @override
   void dispose() {
     _staggerController.dispose();
+    _bounceController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.hasClients) {
+      final canScroll = _scrollController.position.maxScrollExtent > 10;
+      final show = _scrollController.offset < 20 && canScroll;
+      if (show != _showScrollIndicator) {
+        setState(() {
+          _showScrollIndicator = show;
+        });
+      }
+    }
+  }
+
+  void _checkScrollable() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final canScroll = _scrollController.position.maxScrollExtent > 10;
+        final show = _scrollController.offset < 20 && canScroll;
+        if (show != _showScrollIndicator) {
+          setState(() {
+            _showScrollIndicator = show;
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -154,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen>
           const LiquidGlassBackground(),
           SafeArea(
             child: CustomScrollView(
+              controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // Dashboard Header
@@ -169,12 +222,13 @@ class _HomeScreenState extends State<HomeScreen>
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'LAZY GAMES',
+                            JumpingLettersText(
+                              text: 'LAZY GAMES',
                               style: GoogleFonts.getFont(
-                                'Bitcount Grid Double',
+                                'Caveat',
                                 textStyle: AppTheme.displayLgMobile.copyWith(
                                   letterSpacing: 3,
+                                  fontWeight: FontWeight.bold,
                                   shadows: const [
                                     Shadow(
                                       color: AppTheme.neonCyan,
@@ -188,42 +242,17 @@ class _HomeScreenState extends State<HomeScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 4),
                             Text(
                               'Select a game & play together',
-                              style: AppTheme.bodyMd.copyWith(
-                                color: AppTheme.textSecondary,
-                                letterSpacing: 0.5,
+                              style: GoogleFonts.getFont(
+                                "Montserrat",
+                                textStyle: AppTheme.bodyMd.copyWith(
+                                  color: AppTheme.textSecondary,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ],
-                        ),
-                        // Frosted neon badge
-                        GlassContainer(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          borderRadius: 24, // rounded-xl (24px) for controls
-                          borderColor: AppTheme.neonCyan.withOpacity(0.3),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.sports_esports,
-                                size: 16,
-                                color: AppTheme.neonCyan,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'V1.0',
-                                style: TextStyle(
-                                  color: AppTheme.neonCyan,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -255,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   _staggerController.reset();
                                   _staggerController.forward();
                                 });
+                                _checkScrollable();
                               },
                               child: GlassContainer(
                                 padding: const EdgeInsets.symmetric(
@@ -426,6 +456,70 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: _showScrollIndicator ? 1.0 : 0.0,
+                child: IgnorePointer(
+                  ignoring: !_showScrollIndicator,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_scrollController.hasClients) {
+                          _scrollController.animateTo(
+                            _scrollController.position.maxScrollExtent,
+                            duration: const Duration(milliseconds: 800),
+                            curve: Curves.easeOutCubic,
+                          );
+                        }
+                      },
+                      child: AnimatedBuilder(
+                        animation: _bounceController,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(
+                              0,
+                              -5 + (_bounceController.value * 8),
+                            ),
+                            child: child,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.neonCyan.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.neonCyan.withOpacity(0.2),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.keyboard_double_arrow_down_rounded,
+                            color: AppTheme.neonCyan,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -434,107 +528,122 @@ class _HomeScreenState extends State<HomeScreen>
   void _showModeSelection(BuildContext context, GameInfo game) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
       barrierColor: Colors.black.withOpacity(0.4),
-      builder: (context) {
+      builder: (sheetContext) {
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+          ),
           child: GlassContainer(
             borderColor: game.color.withOpacity(0.4),
             fillColor: Colors.black.withOpacity(0.45),
             borderRadius: 24,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Row(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: game.color.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: game.color.withOpacity(0.4),
-                          width: 1.5,
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: game.color.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: game.color.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(game.icon, color: game.color, size: 22),
                         ),
-                      ),
-                      child: Icon(game.icon, color: game.color, size: 22),
+                        const SizedBox(width: 14),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                game.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Choose play mode to begin',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            game.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Choose play mode to begin',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 24),
+
+                    // Button 1: Pass & Play / Play Solo
+                    GlassButton(
+                      color: game.color,
+                      icon: Icon(
+                        game.supportsMultiplayer
+                            ? Icons.person_pin
+                            : Icons.play_arrow,
+                        size: 20,
                       ),
+                      label: Text(
+                        game.supportsMultiplayer
+                            ? 'Pass & Play (Same Device)'
+                            : 'Play Solo',
+                      ),
+                      isPrimary: true,
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        Provider.of<NetworkManager>(
+                          context,
+                          listen: false,
+                        ).stop();
+                        Navigator.pushNamed(
+                          context,
+                          game.route,
+                          arguments: {'network': false},
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Button 2: Local Network Play
+                    GlassButton(
+                      color: game.color,
+                      icon: const Icon(Icons.wifi, size: 20),
+                      label: const Text('Local Network (2 Devices)'),
+                      hasShimmer: game.supportsMultiplayer,
+                      isPrimary: false,
+                      onPressed: game.supportsMultiplayer
+                          ? () {
+                              Navigator.pop(sheetContext);
+                              _showNetworkLobby(context, game);
+                            }
+                          : null,
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-
-                // Button 1: Pass & Play
-                GlassButton(
-                  color: game.color,
-                  icon: Icon(Icons.person_pin, color: game.color, size: 20),
-                  label: Text(
-                    'Pass & Play (Same Device)',
-                    style: TextStyle(
-                      color: game.color,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Provider.of<NetworkManager>(context, listen: false).stop();
-                    Navigator.pushNamed(
-                      context,
-                      game.route,
-                      arguments: {'network': false},
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Button 2: Local Network Play
-                GlassButton(
-                  color: game.color,
-                  icon: Icon(Icons.wifi, color: game.color, size: 20),
-                  label: Text(
-                    'Local Network (2 Devices)',
-                    style: TextStyle(
-                      color: game.color,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showNetworkLobby(context, game);
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -543,328 +652,374 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showNetworkLobby(BuildContext context, GameInfo game) {
+    Provider.of<NetworkManager>(context, listen: false).stop();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: false,
+      isDismissible: false,
       backgroundColor: Colors.transparent,
       elevation: 0,
       barrierColor: Colors.black.withOpacity(0.4),
-      builder: (context) {
-        final ipController = TextEditingController();
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final netManager = Provider.of<NetworkManager>(context);
+      builder: (context) => NetworkLobbySheet(game: game),
+    );
+  }
+}
 
-            if (netManager.isConnected) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.pop(context);
-                Navigator.pushNamed(
-                  context,
-                  game.route,
-                  arguments: {'network': true},
-                );
-              });
-            }
+class NetworkLobbySheet extends StatefulWidget {
+  final GameInfo game;
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: GlassContainer(
-                borderColor: game.color.withOpacity(0.4),
-                fillColor: Colors.black.withOpacity(0.45),
-                borderRadius: 24,
-                padding: const EdgeInsets.all(24),
-                child: SafeArea(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                'Lobby: ${game.title}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (netManager.isSearching)
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation(
-                                    AppTheme.neonCyan,
-                                  ),
-                                ),
-                              ),
-                          ],
+  const NetworkLobbySheet({super.key, required this.game});
+
+  @override
+  State<NetworkLobbySheet> createState() => _NetworkLobbySheetState();
+}
+
+class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
+  late final TextEditingController _ipController;
+  bool _showJoinInput = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ipController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _ipController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final netManager = Provider.of<NetworkManager>(context);
+
+    if (netManager.isConnected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pop(context);
+        Navigator.pushNamed(
+          context,
+          widget.game.route,
+          arguments: {'network': true},
+        );
+      });
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: GlassContainer(
+        borderColor: widget.game.color.withOpacity(0.4),
+        fillColor: Colors.black.withOpacity(0.45),
+        borderRadius: 24,
+        padding: const EdgeInsets.all(24),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Lobby: ${widget.game.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
                         ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Connect with another device on the same Wi-Fi network.',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (netManager.isSearching)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation(AppTheme.neonCyan),
                         ),
-                        const SizedBox(height: 20),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Connect with another device on the same Wi-Fi network.',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 20),
 
-                        if (netManager.role == NetworkRole.none) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: kIsWeb
-                                      ? null
-                                      : () async {
-                                          setSheetState(() {});
-                                          await netManager.hostGame(4040);
-                                          setSheetState(() {});
-                                        },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: GlassContainer(
-                                    height: 100,
-                                    borderColor: kIsWeb
-                                        ? Colors.white.withOpacity(0.05)
-                                        : AppTheme.neonCyan.withOpacity(0.4),
-                                    fillColor: kIsWeb
-                                        ? Colors.transparent
-                                        : AppTheme.neonCyan.withOpacity(0.08),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.dns,
-                                          color: kIsWeb
-                                              ? Colors.grey
-                                              : AppTheme.neonCyan,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'HOST GAME',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        if (kIsWeb)
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 4.0,
-                                            ),
-                                            child: Text(
-                                              'Mobile Only',
-                                              style: TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 9,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    setSheetState(() {});
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: GlassContainer(
-                                    height: 100,
-                                    borderColor: AppTheme.neonGreen.withOpacity(
-                                      0.4,
-                                    ),
-                                    fillColor: AppTheme.neonGreen.withOpacity(
-                                      0.08,
-                                    ),
-                                    child: const Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.wifi_find,
-                                          color: AppTheme.neonGreen,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'JOIN GAME',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else if (netManager.role == NetworkRole.host) ...[
-                          GlassContainer(
-                            padding: const EdgeInsets.all(16),
-                            borderColor: AppTheme.neonCyan.withOpacity(0.2),
-                            fillColor: Colors.black12,
+                if (netManager.role == NetworkRole.none && !_showJoinInput) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: kIsWeb
+                              ? null
+                              : () async {
+                                  await netManager.hostGame(4040);
+                                },
+                          borderRadius: BorderRadius.circular(16),
+                          child: GlassContainer(
+                            height: 100,
+                            borderColor: kIsWeb
+                                ? Colors.white.withOpacity(0.05)
+                                : AppTheme.neonCyan.withOpacity(0.4),
+                            fillColor: kIsWeb
+                                ? Colors.transparent
+                                : AppTheme.neonCyan.withOpacity(0.08),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.dns,
-                                  color: AppTheme.neonCyan,
-                                  size: 36,
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Waiting for player to connect...',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Your Local IP:',
-                                      style: TextStyle(
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                    Text(
-                                      netManager.localIp ?? 'Fetching...',
-                                      style: const TextStyle(
-                                        color: AppTheme.neonCyan,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
+                                  color: kIsWeb
+                                      ? Colors.grey
+                                      : AppTheme.neonCyan,
                                 ),
                                 const SizedBox(height: 8),
-                                const Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Port:',
+                                const Text(
+                                  'HOST GAME',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if (kIsWeb)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4.0,
+                                    ),
+                                    child: Text(
+                                      'Mobile Only',
                                       style: TextStyle(
-                                        color: AppTheme.textSecondary,
+                                        color: Colors.grey,
+                                        fontSize: 9,
                                       ),
                                     ),
-                                    Text(
-                                      '4040',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _showJoinInput = true;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: GlassContainer(
+                            height: 100,
+                            borderColor: AppTheme.neonGreen.withOpacity(0.4),
+                            fillColor: AppTheme.neonGreen.withOpacity(0.08),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.wifi_find,
+                                  color: AppTheme.neonGreen,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'JOIN GAME',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          GlassButton(
-                            color: AppTheme.neonPink,
-                            label: const Text(
-                              'Cancel Hosting',
-                              style: TextStyle(
-                                color: AppTheme.neonPink,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            onPressed: () async {
-                              await netManager.stop();
-                              setSheetState(() {});
-                            },
-                          ),
-                        ] else ...[
-                          TextField(
-                            controller: ipController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Enter Host IP Address',
-                              labelStyle: const TextStyle(
-                                color: AppTheme.neonGreen,
-                              ),
-                              hintText: 'e.g. 192.168.1.100',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: AppTheme.neonGreen.withOpacity(0.4),
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppTheme.neonGreen,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            keyboardType: TextInputType.values.firstWhere(
-                              (_) => true,
-                              orElse: () => TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          GlassButton(
-                            color: AppTheme.neonGreen,
-                            label: const Text(
-                              'Connect',
-                              style: TextStyle(
-                                color: AppTheme.neonGreen,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            onPressed: () async {
-                              final ip = ipController.text.trim();
-                              if (ip.isNotEmpty) {
-                                setSheetState(() {});
-                                await netManager.joinGame(ip, 4040);
-                                setSheetState(() {});
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () async {
-                              await netManager.stop();
-                              setSheetState(() {});
-                            },
-                            child: const Text(
-                              'Back',
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (netManager.role == NetworkRole.host) ...[
+                  GlassContainer(
+                    padding: const EdgeInsets.all(16),
+                    borderColor: AppTheme.neonCyan.withOpacity(0.2),
+                    fillColor: Colors.black12,
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.dns,
+                          color: AppTheme.neonCyan,
+                          size: 36,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Waiting for player to connect...',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Your Local IP:',
                               style: TextStyle(color: AppTheme.textSecondary),
                             ),
-                          ),
-                        ],
+                            Text(
+                              netManager.localIp ?? 'Fetching...',
+                              style: const TextStyle(
+                                color: AppTheme.neonCyan,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Port:',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                            Text(
+                              '4040',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+                  const SizedBox(height: 16),
+                  GlassButton(
+                    color: AppTheme.neonPink,
+                    label: const Text('Cancel Hosting'),
+                    onPressed: () async {
+                      await netManager.stop();
+                    },
+                  ),
+                ] else ...[
+                  if (netManager.isSearching) ...[
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(
+                              AppTheme.neonGreen,
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Connecting to Host...',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: _ipController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Enter Host IP Address',
+                        labelStyle: const TextStyle(color: AppTheme.neonGreen),
+                        hintText: 'e.g. 192.168.1.100',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: AppTheme.neonGreen.withOpacity(0.4),
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: AppTheme.neonGreen,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      keyboardType: TextInputType.values.firstWhere(
+                        (_) => true,
+                        orElse: () => TextInputType.number,
+                      ),
+                      onSubmitted: (val) async {
+                        final ip = val.trim();
+                        if (ip.isNotEmpty) {
+                          try {
+                            await netManager.joinGame(ip, 4040);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to connect: $e'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    GlassButton(
+                      color: AppTheme.neonGreen,
+                      label: const Text('Connect'),
+                      onPressed: () async {
+                        final ip = _ipController.text.trim();
+                        if (ip.isNotEmpty) {
+                          try {
+                            await netManager.joinGame(ip, 4040);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to connect: $e'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () async {
+                      await netManager.stop();
+                      setState(() {
+                        _showJoinInput = false;
+                      });
+                    },
+                    child: const Text(
+                      'Back',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

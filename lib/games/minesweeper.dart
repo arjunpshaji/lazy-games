@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/minesweeper_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -59,7 +60,14 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
     } else {
       final wasFirstTap = !_provider.firstTapDone;
       _provider.revealCell(index);
-      
+
+      // Sound feedback
+      if (_provider.isGameOver) {
+        AudioService.instance.mineExplode();
+      } else {
+        AudioService.instance.gameMove();
+      }
+
       if (_netManager.isConnected) {
         if (wasFirstTap) {
           // Wait briefly for isolate board generation to complete, then sync it
@@ -117,6 +125,8 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       title: 'Minesweeper',
       rules: 'Tap a cell to reveal it. Numbers represent surrounding mines. Long press a cell (or toggle Flag Mode below) to flag suspected mines. Clear all safe cells to win.',
       statusWidget: statusWidget,
+      isWinner: provider.isWon,
+      winSubtitle: 'YOU CLEARED THE BOARD!',
       onReset: () {
         provider.setupGame();
         if (netManager.isConnected) {

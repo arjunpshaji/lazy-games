@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/word_search_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -113,6 +114,7 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
     // Check if the selected path matches any word
     final wordFound = _provider.checkSelection(_selectedPath);
     if (wordFound != null) {
+      AudioService.instance.wordFound();
       final myColor = _netManager.role == NetworkRole.client ? AppTheme.neonPink : AppTheme.neonCyan;
       _provider.markWordFound(wordFound, myColor);
       
@@ -196,6 +198,8 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
       title: 'Word Search',
       rules: 'Drag your finger horizontally, vertically, or diagonally to connect letters and highlight target words from the checklist below.',
       statusWidget: statusWidget,
+      isWinner: provider.isGameOver,
+      winSubtitle: 'ALL WORDS FOUND!',
       onReset: () {
         if (netManager.isConnected) {
           if (netManager.role == NetworkRole.host) {

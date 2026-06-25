@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/connect_four_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -86,10 +87,21 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       );
     }
 
+    final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
+                 (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner = provider.winner != 0 &&
+        provider.winner != 3 &&
+        (!provider.isNetworkGame || iWon);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (provider.winner == 1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!');
+
     return GameShell(
       title: 'Connect Four',
       rules: 'Select a column to drop a chip. First to align 4 chips in a row (horizontally, vertically, or diagonally) wins.',
       statusWidget: statusWidget,
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
       onReset: provider.isNetworkGame && provider.myRole != 'host'
           ? null
           : () {
@@ -128,8 +140,11 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                   onPressed: () {
                     if (provider.isMyTurn && provider.winner == 0) {
                       final success = provider.dropDisc(col);
-                      if (success && provider.isNetworkGame) {
-                        netManager.sendMessage('c4_drop', {'column': col});
+                      if (success) {
+                        AudioService.instance.gameMove();
+                        if (provider.isNetworkGame) {
+                          netManager.sendMessage('c4_drop', {'column': col});
+                        }
                       }
                     }
                   },

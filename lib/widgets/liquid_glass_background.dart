@@ -8,7 +8,8 @@ class LiquidGlassBackground extends StatefulWidget {
   State<LiquidGlassBackground> createState() => _LiquidGlassBackgroundState();
 }
 
-class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with SingleTickerProviderStateMixin {
+class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -31,9 +32,7 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with Sing
     return Stack(
       children: [
         // Pure deep dark base
-        Container(
-          color: const Color(0xFF08090E),
-        ),
+        Container(color: const Color(0xFF08090E)),
         // Animated liquid blobs
         AnimatedBuilder(
           animation: _controller,
@@ -71,8 +70,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with Sing
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFF00F0FF).withOpacity(0.18),
-                              const Color(0xFF00F0FF).withOpacity(0.06),
+                              const Color(0xFF00F0FF).withOpacity(0.35),
+                              const Color(0xFF00F0FF).withOpacity(0.25),
                               const Color(0xFF00F0FF).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -91,8 +90,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with Sing
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFFC000FF).withOpacity(0.18),
-                              const Color(0xFFC000FF).withOpacity(0.06),
+                              const Color(0xFFC000FF).withOpacity(0.35),
+                              const Color(0xFFC000FF).withOpacity(0.25),
                               const Color(0xFFC000FF).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -111,8 +110,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with Sing
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFFFF007F).withOpacity(0.15),
-                              const Color(0xFFFF007F).withOpacity(0.05),
+                              const Color(0xFFFF007F).withOpacity(0.35),
+                              const Color(0xFFFF007F).withOpacity(0.25),
                               const Color(0xFFFF007F).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -131,8 +130,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground> with Sing
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0xFF00FF66).withOpacity(0.12),
-                              const Color(0xFF00FF66).withOpacity(0.04),
+                              const Color(0xFF00FF66).withOpacity(0.35),
+                              const Color(0xFF00FF66).withOpacity(0.25),
                               const Color(0xFF00FF66).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],

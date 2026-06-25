@@ -1,11 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-enum GlassElevation {
-  low,
-  medium,
-  high,
-}
+enum GlassElevation { low, medium, high }
 
 class GlassContainer extends StatelessWidget {
   final Widget child;
@@ -151,7 +147,9 @@ class GlassBorderPainter extends CustomPainter {
     canvas.drawRRect(outerRRect, outerPaint);
 
     // 2. Draw inner linear gradient stroke (Rim Lighting)
-    if (hasRimLighting && size.width > borderWidth * 2 && size.height > borderWidth * 2) {
+    if (hasRimLighting &&
+        size.width > borderWidth * 2 &&
+        size.height > borderWidth * 2) {
       final rimPaint = Paint()
         ..strokeWidth = 1.0
         ..style = PaintingStyle.stroke

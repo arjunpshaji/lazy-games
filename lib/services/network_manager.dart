@@ -86,8 +86,12 @@ class NetworkManager extends ChangeNotifier {
 
     try {
       final wsUrl = Uri.parse('ws://$ipAddress:$port/ws');
-      _channel = WebSocketChannel.connect(wsUrl);
+      final channel = WebSocketChannel.connect(wsUrl);
       
+      // Wait for WebSocket handshake to succeed
+      await channel.ready;
+      
+      _channel = channel;
       _isConnected = true;
       _isSearching = false;
       notifyListeners();
@@ -96,6 +100,7 @@ class NetworkManager extends ChangeNotifier {
     } catch (e) {
       debugPrint("Error connecting to host: $e");
       stop();
+      rethrow;
     }
   }
 

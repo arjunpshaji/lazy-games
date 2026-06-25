@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/sliding_puzzle_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 
@@ -84,6 +85,8 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
       title: 'Sliding Puzzle',
       rules: 'Tap a tile adjacent to the empty cell to slide it. Re-arrange all numbers from 1 to 15 sequentially from top-left to bottom-right.',
       statusWidget: statusWidget,
+      isWinner: provider.isWon,
+      winSubtitle: 'YOU SOLVED IT!',
       onReset: () {
         if (netManager.isConnected) {
           if (netManager.role == NetworkRole.host) {
@@ -131,8 +134,11 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
                           return GestureDetector(
                             onTap: () {
                               final moved = provider.moveTile(index);
-                              if (moved && provider.isWon && netManager.isConnected) {
-                                netManager.sendMessage('sp_won', {});
+                              if (moved) {
+                                AudioService.instance.tileSlide();
+                                if (provider.isWon && netManager.isConnected) {
+                                  netManager.sendMessage('sp_won', {});
+                                }
                               }
                             },
                             child: AnimatedContainer(

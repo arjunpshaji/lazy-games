@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/sudoku_provider.dart';
 import '../../services/network_manager.dart';
+import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 import '../../widgets/glass_container.dart';
@@ -100,6 +101,8 @@ class _SudokuScreenState extends State<SudokuScreen> {
       title: 'Sudoku',
       rules: 'Fill the 9x9 board. Row, column, and 3x3 box must have numbers 1-9. Use notes for pencil marks. Red highlights show conflicts.',
       statusWidget: statusWidget,
+      isWinner: provider.isWinner,
+      winSubtitle: 'YOU SOLVED THE SUDOKU!',
       onReset: provider.isLoading || isNetwork && netManager.role != NetworkRole.host
           ? null
           : () {
@@ -272,12 +275,15 @@ class _SudokuScreenState extends State<SudokuScreen> {
                             final cellIdx = provider.selectedCell;
                             final isNote = provider.isNoteMode;
                             final success = provider.inputNumber(num);
-                            if (success && isNetwork) {
-                              netManager.sendMessage('sudoku_input', {
-                                'index': cellIdx,
-                                'value': num,
-                                'isNote': isNote,
-                              });
+                            if (success) {
+                              AudioService.instance.gameMove();
+                              if (isNetwork) {
+                                netManager.sendMessage('sudoku_input', {
+                                  'index': cellIdx,
+                                  'value': num,
+                                  'isNote': isNote,
+                                });
+                              }
                             }
                           },
                           borderRadius: BorderRadius.circular(24),
