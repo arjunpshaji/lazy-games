@@ -1,0 +1,208 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+
+// We conditionally import dart:io to avoid crash/analyzer warning on Web
+import 'dart:io' if (dart.library.html) 'dart:html' as platform;
+
+enum NetworkRole { none, host, client }
+
+class NetworkManager extends ChangeNotifier {
+  NetworkRole _role = NetworkRole.none;
+  String? _localIp;
+  bool _isConnected = false;
+  bool _isSearching = false;
+  
+  dynamic _server; // Holds the HttpServer on mobile
+  WebSocketChannel? _channel;
+  StreamSubscription? _subscription;
+  
+  // Callback for when a message is received
+  void Function(Map<String, dynamic>)? onMessageReceived;
+  void Function()? onConnected;
+  void Function()? onDisconnected;
+
+  NetworkRole get role => _role;
+  String? get localIp => _localIp;
+  bool get isConnected => _isConnected;
+  bool get isSearching => _isSearching;
+
+  NetworkManager() {
+    if (!kIsWeb) {
+      _fetchLocalIp();
+    }
+  }
+
+  Future<void> _fetchLocalIp() async {
+    try {
+      // Find local IPv4 address
+      final interfaces = await platform.NetworkInterface.list(
+        type: platform.InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          if (addr.address.startsWith('192.168.') || addr.address.startsWith('10.')) {
+            _localIp = addr.address;
+            notifyListeners();
+            return;
+          }
+        }
+      }
+      // Fallback
+      if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
+        _localIp = interfaces.first.addresses.first.address;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error fetching local IP: $e");
+    }
+  }
+
+  // HOST: Start WebSocket Server (Mobile Only)
+  Future<void> hostGame(int port) async {
+    if (kIsWeb) {
+      debugPrint("Web cannot host a server due to browser security constraints.");
+      return;
+    }
+    
+    await stop();
+    _role = NetworkRole.host;
+    _isSearching = true;
+    notifyListeners();
+
+    try {
+      final server = await platform.HttpServer.bind(platform.InternetAddress.anyIPv4, port);
+      _server = server;
+      debugPrint("WebSocket Server running on port $port");
+
+      _subscription = server.listen((platform.HttpRequest request) async {
+        if (request.uri.path == '/ws') {
+          try {
+            final socket = await platform.WebSocketTransformer.upgrade(request);
+            if (_channel != null) {
+              // Only allow one connection for 2-player game
+              socket.close(platform.WebSocketStatus.normalClosure, "Lobby full");
+              return;
+            }
+            
+            _channel = IOWebSocketChannel(socket);
+            _isSearching = false;
+            _isConnected = true;
+            notifyListeners();
+            onConnected?.call();
+            _listenToChannel();
+          } catch (e) {
+            debugPrint("Failed to upgrade socket: $e");
+          }
+        } else {
+          request.response
+            ..statusCode = platform.HttpStatus.notFound
+            ..close();
+        }
+      });
+    } catch (e) {
+      debugPrint("Error starting server: $e");
+      stop();
+    }
+  }
+
+  // CLIENT: Connect to Host (Web & Mobile)
+  Future<void> joinGame(String ipAddress, int port) async {
+    await stop();
+    _role = NetworkRole.client;
+    _isSearching = true;
+    notifyListeners();
+
+    try {
+      final wsUrl = Uri.parse('ws://$ipAddress:$port/ws');
+      _channel = WebSocketChannel.connect(wsUrl);
+      
+      // Wait to see if we can connect successfully
+      _isConnected = true;
+      _isSearching = false;
+      notifyListeners();
+      onConnected?.call();
+      _listenToChannel();
+    } catch (e) {
+      debugPrint("Error connecting to host: $e");
+      stop();
+    }
+  }
+
+  void _listenToChannel() {
+    _channel?.stream.listen(
+      (message) {
+        try {
+          final decoded = jsonDecode(message) as Map<String, dynamic>;
+          onMessageReceived?.call(decoded);
+        } catch (e) {
+          debugPrint("Error parsing incoming message: $e");
+        }
+      },
+      onError: (error) {
+        debugPrint("WebSocket stream error: $error");
+        stop();
+      },
+      onDone: () {
+        debugPrint("WebSocket stream closed");
+        stop();
+      },
+    );
+  }
+
+  // Send a packet to the other device
+  void sendMessage(String type, Map<String, dynamic> data) {
+    if (_channel == null || !_isConnected) return;
+    
+    final packet = {
+      'type': type,
+      'sender': _role.name,
+      'data': data,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+    
+    try {
+      _channel!.sink.add(jsonEncode(packet));
+    } catch (e) {
+      debugPrint("Error sending message: $e");
+    }
+  }
+
+  // Terminate connection
+  Future<void> stop() async {
+    _isConnected = false;
+    _isSearching = false;
+    
+    await _subscription?.cancel();
+    _subscription = null;
+    
+    try {
+      await _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+
+    if (!kIsWeb && _server != null) {
+      try {
+        await _server.close(force: true);
+      } catch (_) {}
+      _server = null;
+    }
+
+    final oldRole = _role;
+    _role = NetworkRole.none;
+    
+    if (oldRole != NetworkRole.none) {
+      onDisconnected?.call();
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    stop();
+    super.dispose();
+  }
+}
