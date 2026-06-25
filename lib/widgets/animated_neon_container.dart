@@ -19,13 +19,13 @@ class AnimatedNeonContainer extends StatefulWidget {
     required this.child,
     required this.color,
     this.borderRadius = 16.0,
-    this.borderWidth = 1.5,
+    this.borderWidth = 1.0,
     this.height,
     this.width,
     this.padding,
     this.margin,
     this.alignment,
-    this.duration = const Duration(seconds: 4),
+    this.duration = const Duration(seconds: 10),
     this.backgroundColor,
   });
 
@@ -33,16 +33,15 @@ class AnimatedNeonContainer extends StatefulWidget {
   State<AnimatedNeonContainer> createState() => _AnimatedNeonContainerState();
 }
 
-class _AnimatedNeonContainerState extends State<AnimatedNeonContainer> with SingleTickerProviderStateMixin {
+class _AnimatedNeonContainerState extends State<AnimatedNeonContainer>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
   }
 
   @override
@@ -71,8 +70,17 @@ class _AnimatedNeonContainerState extends State<AnimatedNeonContainer> with Sing
             alignment: widget.alignment,
             decoration: BoxDecoration(
               // Background fill uses specified color or theme default
-              color: widget.backgroundColor ?? AppTheme.cardBackground.withOpacity(0.9),
+              color:
+                  widget.backgroundColor ??
+                  AppTheme.cardBackground.withOpacity(0.9),
               borderRadius: BorderRadius.circular(widget.borderRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withOpacity(0.12),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
             child: widget.child,
           ),
@@ -105,7 +113,7 @@ class NeonMarqueePainter extends CustomPainter {
     final baseBorderPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
-      ..color = color.withOpacity(0.12);
+      ..color = color.withOpacity(0.06);
     canvas.drawRRect(rrect, baseBorderPaint);
 
     // 2. Create and compute path metrics for the marquee segments
@@ -127,8 +135,14 @@ class NeonMarqueePainter extends CustomPainter {
     if (endPos1 <= totalLength) {
       extractPath.addPath(metric.extractPath(startPos1, endPos1), Offset.zero);
     } else {
-      extractPath.addPath(metric.extractPath(startPos1, totalLength), Offset.zero);
-      extractPath.addPath(metric.extractPath(0.0, endPos1 - totalLength), Offset.zero);
+      extractPath.addPath(
+        metric.extractPath(startPos1, totalLength),
+        Offset.zero,
+      );
+      extractPath.addPath(
+        metric.extractPath(0.0, endPos1 - totalLength),
+        Offset.zero,
+      );
     }
 
     // Second chasing capsule segment (opposite side)
@@ -137,24 +151,30 @@ class NeonMarqueePainter extends CustomPainter {
     if (endPos2 <= totalLength) {
       extractPath.addPath(metric.extractPath(startPos2, endPos2), Offset.zero);
     } else {
-      extractPath.addPath(metric.extractPath(startPos2, totalLength), Offset.zero);
-      extractPath.addPath(metric.extractPath(0.0, endPos2 - totalLength), Offset.zero);
+      extractPath.addPath(
+        metric.extractPath(startPos2, totalLength),
+        Offset.zero,
+      );
+      extractPath.addPath(
+        metric.extractPath(0.0, endPos2 - totalLength),
+        Offset.zero,
+      );
     }
 
     // Outer glow paint (blurred)
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = borderWidth + 4.0
+      ..strokeWidth = borderWidth + 1.5
       ..strokeCap = StrokeCap.round
-      ..color = color
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0);
+      ..color = color.withOpacity(0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
 
     // Sharp foreground marquee paint
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
       ..strokeCap = StrokeCap.round
-      ..color = color;
+      ..color = color.withOpacity(0.7);
 
     // Draw the glow layer first, then the sharp line on top
     canvas.drawPath(extractPath, glowPaint);

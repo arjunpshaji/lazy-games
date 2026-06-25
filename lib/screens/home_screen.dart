@@ -235,96 +235,117 @@ class _HomeScreenState extends State<HomeScreen>
                           color: game.color,
                           borderWidth: 1.0,
                           height: 110,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(
                               children: [
-                                // Game icon container
-                                Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: BoxDecoration(
-                                    color: game.color.withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: game.color.withOpacity(0.3),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    game.icon,
-                                    color: game.color,
-                                    size: 32,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                // Text details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              game.title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppTheme.textPrimary,
-                                              ),
-                                            ),
+                                      // Game icon container
+                                      Container(
+                                        width: 64,
+                                        height: 64,
+                                        decoration: BoxDecoration(
+                                          color: game.color.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: game.color.withOpacity(0.3),
+                                            width: 1.5,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                              color: game.color.withOpacity(
-                                                0.15,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              game.category.toUpperCase(),
-                                              style: TextStyle(
-                                                color: game.color,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w800,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        game.description,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.textSecondary,
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                        child: Icon(
+                                          game.icon,
+                                          color: game.color,
+                                          size: 32,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      // Text details
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    game.title,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          AppTheme.textPrimary,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                    color: game.color
+                                                        .withOpacity(0.15),
+                                                  ),
+                                                  child: Text(
+                                                    game.category.toUpperCase(),
+                                                    style: TextStyle(
+                                                      color: game.color,
+                                                      fontSize: 9,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      letterSpacing: 0.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              game.description,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: game.color.withOpacity(0.5),
+                                        size: 16,
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: game.color.withOpacity(0.5),
-                                  size: 16,
-                                ),
+                                if (game.id == 'connect_four')
+                                  Positioned(
+                                    top: 12,
+                                    right: -28,
+                                    child: _buildFavoriteBanner(),
+                                  ),
                               ],
                             ),
                           ),
@@ -338,6 +359,43 @@ class _HomeScreenState extends State<HomeScreen>
 
             // Bottom spacing
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoriteBanner() {
+    return Transform.rotate(
+      angle: 0.7853, // 45 degrees
+      child: Container(
+        width: 100,
+        height: 20,
+        decoration: BoxDecoration(
+          color: AppTheme.neonPink,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.favorite, color: Colors.white, size: 10),
+            SizedBox(width: 4),
+            Text(
+              'FAVORITE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
           ],
         ),
       ),
@@ -556,15 +614,20 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 20),
 
-                      if (netManager.role == NetworkRole.none && !isJoining) ...[
+                      if (netManager.role == NetworkRole.none &&
+                          !isJoining) ...[
                         // Selection choices: Host or Join
                         Row(
                           children: [
                             // HOST Button (Mobile Only)
                             Expanded(
                               child: AnimatedNeonContainer(
-                                color: kIsWeb ? Colors.grey.withOpacity(0.3) : AppTheme.forestAccent,
-                                backgroundColor: kIsWeb ? Colors.transparent : AppTheme.forestDark,
+                                color: kIsWeb
+                                    ? Colors.grey.withOpacity(0.3)
+                                    : AppTheme.forestAccent,
+                                backgroundColor: kIsWeb
+                                    ? Colors.transparent
+                                    : AppTheme.forestDark,
                                 borderRadius: 12,
                                 borderWidth: 1.5,
                                 child: InkWell(
@@ -580,11 +643,14 @@ class _HomeScreenState extends State<HomeScreen>
                                     height: 100,
                                     alignment: Alignment.center,
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(
                                           Icons.dns,
-                                          color: kIsWeb ? Colors.grey : AppTheme.forestMint,
+                                          color: kIsWeb
+                                              ? Colors.grey
+                                              : AppTheme.forestMint,
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
@@ -592,7 +658,9 @@ class _HomeScreenState extends State<HomeScreen>
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
-                                            color: kIsWeb ? Colors.grey : Colors.white,
+                                            color: kIsWeb
+                                                ? Colors.grey
+                                                : Colors.white,
                                           ),
                                         ),
                                         if (kIsWeb)
@@ -633,7 +701,8 @@ class _HomeScreenState extends State<HomeScreen>
                                     height: 100,
                                     alignment: Alignment.center,
                                     child: const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(
                                           Icons.wifi_find,
@@ -763,7 +832,9 @@ class _HomeScreenState extends State<HomeScreen>
                               color: AppTheme.forestMint,
                             ),
                             hintText: 'e.g. 192.168.1.100',
-                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                            hintStyle: TextStyle(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
                             enabledBorder: OutlineInputBorder(
                               borderSide: const BorderSide(
                                 color: AppTheme.forestAccent,
@@ -822,7 +893,10 @@ class _HomeScreenState extends State<HomeScreen>
                           },
                           child: const Text(
                             'Back',
-                            style: TextStyle(color: AppTheme.forestAccent, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: AppTheme.forestAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
