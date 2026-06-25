@@ -2,10 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
-
-// We conditionally import dart:io to avoid crash/analyzer warning on Web
-import 'dart:io' if (dart.library.html) 'dart:html' as platform;
+import 'network_helper.dart';
 
 enum NetworkRole { none, host, client }
 
@@ -17,7 +14,6 @@ class NetworkManager extends ChangeNotifier {
   
   dynamic _server; // Holds the HttpServer on mobile
   WebSocketChannel? _channel;
-  StreamSubscription? _subscription;
   
   // Callback for when a message is received
   void Function(Map<String, dynamic>)? onMessageReceived;
@@ -30,34 +26,14 @@ class NetworkManager extends ChangeNotifier {
   bool get isSearching => _isSearching;
 
   NetworkManager() {
-    if (!kIsWeb) {
-      _fetchLocalIp();
-    }
+    _fetchLocalIp();
   }
 
   Future<void> _fetchLocalIp() async {
-    try {
-      // Find local IPv4 address
-      final interfaces = await platform.NetworkInterface.list(
-        type: platform.InternetAddressType.IPv4,
-        includeLoopback: false,
-      );
-      for (var interface in interfaces) {
-        for (var addr in interface.addresses) {
-          if (addr.address.startsWith('192.168.') || addr.address.startsWith('10.')) {
-            _localIp = addr.address;
-            notifyListeners();
-            return;
-          }
-        }
-      }
-      // Fallback
-      if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
-        _localIp = interfaces.first.addresses.first.address;
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint("Error fetching local IP: $e");
+    final ip = await NetworkHelper.instance.getLocalIp();
+    if (ip != null) {
+      _localIp = ip;
+      notifyListeners();
     }
   }
 
@@ -74,35 +50,27 @@ class NetworkManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final server = await platform.HttpServer.bind(platform.InternetAddress.anyIPv4, port);
-      _server = server;
-      debugPrint("WebSocket Server running on port $port");
-
-      _subscription = server.listen((platform.HttpRequest request) async {
-        if (request.uri.path == '/ws') {
+      _server = await NetworkHelper.instance.startServer(port, (socket) {
+        if (_channel != null) {
+          // Only allow one connection for 2-player game
+          // socket is standard WebSocket in VM, we can close it
           try {
-            final socket = await platform.WebSocketTransformer.upgrade(request);
-            if (_channel != null) {
-              // Only allow one connection for 2-player game
-              socket.close(platform.WebSocketStatus.normalClosure, "Lobby full");
-              return;
-            }
-            
-            _channel = IOWebSocketChannel(socket);
-            _isSearching = false;
-            _isConnected = true;
-            notifyListeners();
-            onConnected?.call();
-            _listenToChannel();
-          } catch (e) {
-            debugPrint("Failed to upgrade socket: $e");
-          }
-        } else {
-          request.response
-            ..statusCode = platform.HttpStatus.notFound
-            ..close();
+            socket.close();
+          } catch (_) {}
+          return;
+        }
+
+        final wrapped = NetworkHelper.instance.wrapSocket(socket);
+        if (wrapped != null) {
+          _channel = wrapped;
+          _isSearching = false;
+          _isConnected = true;
+          notifyListeners();
+          onConnected?.call();
+          _listenToChannel();
         }
       });
+      debugPrint("WebSocket Server running on port $port");
     } catch (e) {
       debugPrint("Error starting server: $e");
       stop();
@@ -120,7 +88,6 @@ class NetworkManager extends ChangeNotifier {
       final wsUrl = Uri.parse('ws://$ipAddress:$port/ws');
       _channel = WebSocketChannel.connect(wsUrl);
       
-      // Wait to see if we can connect successfully
       _isConnected = true;
       _isSearching = false;
       notifyListeners();
@@ -176,17 +143,14 @@ class NetworkManager extends ChangeNotifier {
     _isConnected = false;
     _isSearching = false;
     
-    await _subscription?.cancel();
-    _subscription = null;
-    
     try {
       await _channel?.sink.close();
     } catch (_) {}
     _channel = null;
 
-    if (!kIsWeb && _server != null) {
+    if (_server != null) {
       try {
-        await _server.close(force: true);
+        await NetworkHelper.instance.stopServer(_server);
       } catch (_) {}
       _server = null;
     }
