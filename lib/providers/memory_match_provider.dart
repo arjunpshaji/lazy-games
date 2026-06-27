@@ -15,6 +15,8 @@ class MemoryMatchProvider extends ChangeNotifier {
 
   bool _isNetworkGame = false;
   String _myRole = 'host'; // 'host' or 'client'
+  bool _isSolo = false;
+  int _moves = 0;
 
   List<int> get cards => _cards;
   List<bool> get flipped => _flipped;
@@ -25,17 +27,22 @@ class MemoryMatchProvider extends ChangeNotifier {
   bool get isWaiting => _isWaiting;
   bool get isNetworkGame => _isNetworkGame;
   String get myRole => _myRole;
+  bool get isSolo => _isSolo;
+  int get moves => _moves;
 
   bool get isMyTurn {
+    if (_isSolo) return true;
     if (!_isNetworkGame) return true;
     return (_myRole == 'host' && _isPlayer1Turn) || (_myRole == 'client' && !_isPlayer1Turn);
   }
 
-  void setupGame({required bool isNetwork, required String role, List<int>? preShuffledCards}) {
+  void setupGame({required bool isNetwork, required String role, bool isSolo = false, List<int>? preShuffledCards}) {
     _isNetworkGame = isNetwork;
     _myRole = role;
+    _isSolo = isSolo;
     _player1Score = 0;
     _player2Score = 0;
+    _moves = 0;
     _isPlayer1Turn = true;
     _selectedIndices = [];
     _isWaiting = false;
@@ -68,13 +75,19 @@ class MemoryMatchProvider extends ChangeNotifier {
       final first = _selectedIndices[0];
       final second = _selectedIndices[1];
       
+      if (_isSolo) {
+        _moves++;
+      }
+      
       if (_cards[first] == _cards[second]) {
         // MATCH!
         await Future.delayed(const Duration(milliseconds: 600));
         _matched[first] = true;
         _matched[second] = true;
         
-        if (_isPlayer1Turn) {
+        if (_isSolo) {
+          _player1Score++;
+        } else if (_isPlayer1Turn) {
           _player1Score++;
         } else {
           _player2Score++;
@@ -89,7 +102,9 @@ class MemoryMatchProvider extends ChangeNotifier {
         _flipped[first] = false;
         _flipped[second] = false;
         
-        _isPlayer1Turn = !_isPlayer1Turn;
+        if (!_isSolo) {
+          _isPlayer1Turn = !_isPlayer1Turn;
+        }
         _selectedIndices.clear();
         _isWaiting = false;
         notifyListeners();

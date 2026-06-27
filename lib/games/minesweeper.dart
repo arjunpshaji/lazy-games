@@ -5,6 +5,7 @@ import '../../services/network_manager.dart';
 import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/lottie_loader.dart';
 
 class MinesweeperScreen extends StatefulWidget {
   const MinesweeperScreen({super.key});
@@ -24,10 +25,11 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<MinesweeperProvider>(context, listen: false);
-      
+
       _provider.setupGame();
 
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
 
       if (isNetwork) {
@@ -72,7 +74,9 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
         if (wasFirstTap) {
           // Wait briefly for isolate board generation to complete, then sync it
           Future.delayed(const Duration(milliseconds: 100), () {
-            _netManager.sendMessage('ms_setup', {'grid': _provider.getFlatGrid()});
+            _netManager.sendMessage('ms_setup', {
+              'grid': _provider.getFlatGrid(),
+            });
           });
         } else {
           _netManager.sendMessage('ms_reveal', {'index': index});
@@ -99,13 +103,27 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
-        child: const Text('BOOM! GAME OVER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        child: const Text(
+          'BOOM! GAME OVER',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else if (provider.isWon) {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
-        child: const Text('MINES CLEARED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        child: const Text(
+          'MINES CLEARED!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       statusWidget = Row(
@@ -115,7 +133,10 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
           const SizedBox(width: 6),
           Text(
             'Flags: ${provider.flaggedCount} / ${provider.numMines}',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
           ),
         ],
       );
@@ -123,7 +144,8 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
 
     return GameShell(
       title: 'Minesweeper',
-      rules: 'Tap a cell to reveal it. Numbers represent surrounding mines. Long press a cell (or toggle Flag Mode below) to flag suspected mines. Clear all safe cells to win.',
+      rules:
+          'Tap a cell to reveal it. Numbers represent surrounding mines. Long press a cell (or toggle Flag Mode below) to flag suspected mines. Clear all safe cells to win.',
       statusWidget: statusWidget,
       isWinner: provider.isWon,
       winSubtitle: 'YOU CLEARED THE BOARD!',
@@ -137,16 +159,17 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(40.0),
-                child: CircularProgressIndicator(color: AppTheme.neonCyan),
+                child: LottieLoader(size: 220),
               ),
             )
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 10x10 Grid
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
+                if (provider.grid.isNotEmpty)
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.white10),
                       borderRadius: BorderRadius.circular(12),
@@ -154,11 +177,12 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
                     clipBehavior: Clip.antiAlias,
                     child: GridView.builder(
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 10,
-                        crossAxisSpacing: 1.5,
-                        mainAxisSpacing: 1.5,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 10,
+                            crossAxisSpacing: 1.5,
+                            mainAxisSpacing: 1.5,
+                          ),
                       itemCount: 100,
                       itemBuilder: (context, index) {
                         final cell = provider.grid[index];
@@ -185,7 +209,13 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
                     FilterChip(
                       label: Row(
                         children: [
-                          Icon(Icons.flag, size: 18, color: _tapToFlag ? AppTheme.neonGreen : AppTheme.textSecondary),
+                          Icon(
+                            Icons.flag,
+                            size: 18,
+                            color: _tapToFlag
+                                ? AppTheme.neonGreen
+                                : AppTheme.textSecondary,
+                          ),
                           const SizedBox(width: 6),
                           const Text('Flag Mode'),
                         ],

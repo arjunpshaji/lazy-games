@@ -95,7 +95,8 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
-      onReset: provider.isNetworkGame && provider.myRole != 'host'
+      isInProgress: provider.winner == 0,
+      onReset: provider.isNetworkGame && provider.myRole != 'host' && provider.winner != 0
           ? null
           : () {
               if (provider.isNetworkGame) {

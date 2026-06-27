@@ -5,6 +5,7 @@ import '../../services/network_manager.dart';
 import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
+import '../../widgets/lottie_loader.dart';
 
 class SlidingPuzzleScreen extends StatefulWidget {
   const SlidingPuzzleScreen({super.key});
@@ -23,10 +24,11 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<SlidingPuzzleProvider>(context, listen: false);
-      
+
       _provider.setupGame();
 
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
@@ -66,39 +68,67 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
-        child: const Text('YOU SOLVED IT!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        child: const Text(
+          'YOU SOLVED IT!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else if (provider.isOpponentWon) {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
-        child: const Text('OPPONENT WON THE RACE!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        child: const Text(
+          'OPPONENT WON THE RACE!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       statusWidget = Text(
         'Moves: ${provider.moves}',
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textSecondary),
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: AppTheme.textSecondary,
+        ),
       );
     }
 
     return GameShell(
       title: 'Sliding Puzzle',
-      rules: 'Tap a tile adjacent to the empty cell to slide it. Re-arrange all numbers from 1 to 15 sequentially from top-left to bottom-right.',
+      rules:
+          'Tap a tile adjacent to the empty cell to slide it. Re-arrange all numbers from 1 to 15 sequentially from top-left to bottom-right.',
       statusWidget: statusWidget,
       isWinner: provider.isWon,
       winSubtitle: 'YOU SOLVED IT!',
-      onReset: () {
-        if (netManager.isConnected) {
-          if (netManager.role == NetworkRole.host) {
-            _generateAndSyncNetworkGame();
-            netManager.sendMessage('sp_reset', {});
-          }
-        } else {
-          provider.startPuzzle();
-        }
-      },
+      isInProgress:
+          (!provider.isWon && !provider.isOpponentWon) && provider.moves > 0,
+      onReset:
+          netManager.isConnected &&
+              netManager.role != NetworkRole.host &&
+              (provider.isWon || provider.isOpponentWon)
+          ? null
+          : () {
+              if (netManager.isConnected) {
+                if (netManager.role == NetworkRole.host) {
+                  _generateAndSyncNetworkGame();
+                  netManager.sendMessage('sp_reset', {});
+                } else {
+                  netManager.sendMessage('sp_reset', {});
+                }
+              } else {
+                provider.startPuzzle();
+              }
+            },
       child: provider.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
+          ? const Center(child: LottieLoader(size: 220))
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -114,22 +144,25 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
                       ),
                       child: GridView.builder(
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                            ),
                         itemCount: 16,
                         itemBuilder: (context, index) {
                           final tileVal = provider.board[index];
-                          
+
                           if (tileVal == 0) {
                             return const SizedBox.shrink(); // Empty slot
                           }
 
                           // Check if in correct final spot to give helpful visual hint
                           final isCorrect = tileVal == index + 1;
-                          final neonColor = isCorrect ? AppTheme.neonGreen : AppTheme.neonOrange;
+                          final neonColor = isCorrect
+                              ? AppTheme.neonGreen
+                              : AppTheme.neonOrange;
 
                           return GestureDetector(
                             onTap: () {
@@ -154,7 +187,9 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: isCorrect ? AppTheme.neonGreen : Colors.white,
+                                  color: isCorrect
+                                      ? AppTheme.neonGreen
+                                      : Colors.white,
                                 ),
                               ),
                             ),

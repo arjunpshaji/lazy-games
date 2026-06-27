@@ -20,6 +20,16 @@ class NetworkManager extends ChangeNotifier {
   void Function()? onConnected;
   void Function()? onDisconnected;
 
+  final List<void Function(Map<String, dynamic>)> _messageListeners = [];
+
+  void addMessageListener(void Function(Map<String, dynamic>) listener) {
+    _messageListeners.add(listener);
+  }
+
+  void removeMessageListener(void Function(Map<String, dynamic>) listener) {
+    _messageListeners.remove(listener);
+  }
+
   NetworkRole get role => _role;
   String? get localIp => _localIp;
   bool get isConnected => _isConnected;
@@ -110,6 +120,13 @@ class NetworkManager extends ChangeNotifier {
         try {
           final decoded = jsonDecode(message) as Map<String, dynamic>;
           onMessageReceived?.call(decoded);
+          for (final listener in List.of(_messageListeners)) {
+            try {
+              listener(decoded);
+            } catch (e) {
+              debugPrint("Error in network message listener: $e");
+            }
+          }
         } catch (e) {
           debugPrint("Error parsing incoming message: $e");
         }

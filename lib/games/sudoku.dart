@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/sudoku_provider.dart';
@@ -6,6 +7,7 @@ import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/game_shell.dart';
 import '../../widgets/glass_container.dart';
+import '../../widgets/lottie_loader.dart';
 
 class SudokuScreen extends StatefulWidget {
   const SudokuScreen({super.key});
@@ -24,8 +26,9 @@ class _SudokuScreenState extends State<SudokuScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<SudokuProvider>(context, listen: false);
-      
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
 
       if (isNetwork) {
@@ -76,14 +79,27 @@ class _SudokuScreenState extends State<SudokuScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         borderColor: AppTheme.neonCyan.withOpacity(0.4),
         borderRadius: 20,
-        child: const Text('GENERATING BOARD IN BACKGROUND...', style: TextStyle(color: AppTheme.neonCyan, fontWeight: FontWeight.bold)),
+        child: const Text(
+          'Generating board in background...',
+          style: TextStyle(
+            color: AppTheme.neonCyan,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       );
     } else if (provider.isWinner) {
       statusWidget = GlassContainer(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         borderColor: AppTheme.neonGreen,
         borderRadius: 20,
-        child: const Text('SUDOKU SOLVED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+        child: const Text(
+          'SUDOKU SOLVED!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       statusWidget = GlassContainer(
@@ -92,18 +108,28 @@ class _SudokuScreenState extends State<SudokuScreen> {
         borderRadius: 20,
         child: Text(
           'Difficulty: ${provider.difficulty}',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
       );
     }
 
     return GameShell(
       title: 'Sudoku',
-      rules: 'Fill the 9x9 board. Row, column, and 3x3 box must have numbers 1-9. Use notes for pencil marks. Red highlights show conflicts.',
+      rules:
+          'Fill the 9x9 board. Row, column, and 3x3 box must have numbers 1-9. Use notes for pencil marks. Red highlights show conflicts.',
       statusWidget: statusWidget,
       isWinner: provider.isWinner,
       winSubtitle: 'YOU SOLVED THE SUDOKU!',
-      onReset: provider.isLoading || isNetwork && netManager.role != NetworkRole.host
+      isInProgress:
+          !provider.isWinner && !listEquals(provider.board, provider.puzzle),
+      onReset:
+          provider.isLoading ||
+              (isNetwork &&
+                  netManager.role != NetworkRole.host &&
+                  provider.isWinner)
           ? null
           : () {
               if (isNetwork) {
@@ -117,7 +143,7 @@ class _SudokuScreenState extends State<SudokuScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(40.0),
-                child: CircularProgressIndicator(color: AppTheme.neonGreen),
+                child: LottieLoader(size: 220),
               ),
             )
           : Column(
@@ -132,9 +158,13 @@ class _SudokuScreenState extends State<SudokuScreen> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6.0),
                         child: GestureDetector(
-                          onTap: () => provider.generateNewGame(difficulty: diff),
+                          onTap: () =>
+                              provider.generateNewGame(difficulty: diff),
                           child: GlassContainer(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             borderRadius: 24, // rounded-xl (24px) for controls
                             borderColor: active
                                 ? AppTheme.neonGreen.withOpacity(0.6)
@@ -145,8 +175,12 @@ class _SudokuScreenState extends State<SudokuScreen> {
                             child: Text(
                               diff,
                               style: AppTheme.labelCaps.copyWith(
-                                color: active ? Colors.white : AppTheme.textSecondary,
-                                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                                color: active
+                                    ? Colors.white
+                                    : AppTheme.textSecondary,
+                                fontWeight: active
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
@@ -166,15 +200,19 @@ class _SudokuScreenState extends State<SudokuScreen> {
                     aspectRatio: 1,
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1.5),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1.5,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: GridView.builder(
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 9,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 9,
+                            ),
                         itemCount: 81,
                         itemBuilder: (context, index) {
                           final row = index ~/ 9;
@@ -185,8 +223,12 @@ class _SudokuScreenState extends State<SudokuScreen> {
                           final hasConflict = provider.hasConflict(index);
 
                           // 3x3 thick borders styling
-                          double borderLeft = (col % 3 == 0 && col > 0) ? 1.5 : 0.5;
-                          double borderTop = (row % 3 == 0 && row > 0) ? 1.5 : 0.5;
+                          double borderLeft = (col % 3 == 0 && col > 0)
+                              ? 1.5
+                              : 0.5;
+                          double borderTop = (row % 3 == 0 && row > 0)
+                              ? 1.5
+                              : 0.5;
 
                           return GestureDetector(
                             onTap: () => provider.selectCell(index),
@@ -195,27 +237,58 @@ class _SudokuScreenState extends State<SudokuScreen> {
                                 color: isSelected
                                     ? AppTheme.neonCyan.withOpacity(0.2)
                                     : isStarting
-                                        ? Colors.white.withOpacity(0.02)
-                                        : Colors.transparent,
+                                    ? Colors.white.withOpacity(0.02)
+                                    : Colors.transparent,
                                 border: Border(
-                                  left: BorderSide(color: col % 3 == 0 && col > 0 ? Colors.white60 : Colors.white12, width: borderLeft),
-                                  top: BorderSide(color: row % 3 == 0 && row > 0 ? Colors.white60 : Colors.white12, width: borderTop),
-                                  right: const BorderSide(color: Colors.white12, width: 0.5),
-                                  bottom: const BorderSide(color: Colors.white12, width: 0.5),
+                                  left: BorderSide(
+                                    color: col % 3 == 0 && col > 0
+                                        ? Colors.white60
+                                        : Colors.white12,
+                                    width: borderLeft,
+                                  ),
+                                  top: BorderSide(
+                                    color: row % 3 == 0 && row > 0
+                                        ? Colors.white60
+                                        : Colors.white12,
+                                    width: borderTop,
+                                  ),
+                                  right: const BorderSide(
+                                    color: Colors.white12,
+                                    width: 0.5,
+                                  ),
+                                  bottom: const BorderSide(
+                                    color: Colors.white12,
+                                    width: 0.5,
+                                  ),
                                 ),
                               ),
                               child: Center(
                                 child: hasConflict
                                     ? Container(
                                         decoration: BoxDecoration(
-                                          border: Border.all(color: AppTheme.neonPink, width: 1.5),
-                                          borderRadius: BorderRadius.circular(4),
-                                          color: AppTheme.neonPink.withOpacity(0.12),
+                                          border: Border.all(
+                                            color: AppTheme.neonPink,
+                                            width: 1.5,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          color: AppTheme.neonPink.withOpacity(
+                                            0.12,
+                                          ),
                                         ),
                                         alignment: Alignment.center,
-                                        child: _buildCellValue(val, provider.notes[index], isStarting),
+                                        child: _buildCellValue(
+                                          val,
+                                          provider.notes[index],
+                                          isStarting,
+                                        ),
                                       )
-                                    : _buildCellValue(val, provider.notes[index], isStarting),
+                                    : _buildCellValue(
+                                        val,
+                                        provider.notes[index],
+                                        isStarting,
+                                      ),
                               ),
                             ),
                           );
@@ -228,7 +301,10 @@ class _SudokuScreenState extends State<SudokuScreen> {
 
                 // Controls & Pad wrapped in a glass container toolbar
                 GlassContainer(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   borderRadius: 24, // rounded-xl (24px) for controls
                   borderColor: Colors.white.withOpacity(0.08),
                   child: Row(
@@ -238,7 +314,9 @@ class _SudokuScreenState extends State<SudokuScreen> {
                       IconButton(
                         icon: Icon(
                           provider.isNoteMode ? Icons.edit : Icons.edit_off,
-                          color: provider.isNoteMode ? AppTheme.neonCyan : AppTheme.textSecondary,
+                          color: provider.isNoteMode
+                              ? AppTheme.neonCyan
+                              : AppTheme.textSecondary,
                         ),
                         iconSize: 28,
                         onPressed: provider.toggleNoteMode,
@@ -246,13 +324,18 @@ class _SudokuScreenState extends State<SudokuScreen> {
                       ),
                       // Delete button
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppTheme.neonPink),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: AppTheme.neonPink,
+                        ),
                         iconSize: 28,
                         onPressed: () {
                           final cellIdx = provider.selectedCell;
                           final success = provider.deleteNumber();
                           if (success && isNetwork) {
-                            netManager.sendMessage('sudoku_delete', {'index': cellIdx});
+                            netManager.sendMessage('sudoku_delete', {
+                              'index': cellIdx,
+                            });
                           }
                         },
                         tooltip: 'Delete cell value',
@@ -290,7 +373,8 @@ class _SudokuScreenState extends State<SudokuScreen> {
                           child: AspectRatio(
                             aspectRatio: 1,
                             child: GlassContainer(
-                              borderRadius: 24, // rounded-xl (24px) for controls
+                              borderRadius:
+                                  24, // rounded-xl (24px) for controls
                               borderWidth: 1.0,
                               borderColor: AppTheme.neonGreen.withOpacity(0.4),
                               fillColor: Colors.white.withOpacity(0.02),
@@ -325,9 +409,14 @@ class _SudokuScreenState extends State<SudokuScreen> {
           fontSize: 18,
           fontWeight: isStarting ? FontWeight.w900 : FontWeight.bold,
           color: isStarting ? Colors.white : AppTheme.neonCyan,
-          shadows: isStarting ? [] : [
-            Shadow(color: AppTheme.neonCyan.withOpacity(0.8), blurRadius: 6),
-          ],
+          shadows: isStarting
+              ? []
+              : [
+                  Shadow(
+                    color: AppTheme.neonCyan.withOpacity(0.8),
+                    blurRadius: 6,
+                  ),
+                ],
         ),
       );
     }

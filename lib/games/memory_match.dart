@@ -32,13 +32,14 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      final isSolo = args?['isSolo'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
       if (isNetwork) {
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'memory_setup') {
             final cards = List<int>.from(packet['data']['cards']);
-            _provider.setupGame(isNetwork: true, role: role, preShuffledCards: cards);
+            _provider.setupGame(isNetwork: true, role: role, isSolo: false, preShuffledCards: cards);
           } else if (packet['type'] == 'memory_tap') {
             final idx = packet['data']['index'] as int;
             _provider.handleNetworkTap(idx);
@@ -51,7 +52,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           _generateAndSyncNetworkGame();
         }
       } else {
-        _provider.setupGame(isNetwork: false, role: role);
+        _provider.setupGame(isNetwork: false, role: role, isSolo: isSolo);
       }
     });
   }
@@ -60,7 +61,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     final cards = List.generate(8, (i) => i) + List.generate(8, (i) => i);
     cards.shuffle();
     
-    _provider.setupGame(isNetwork: true, role: 'host', preShuffledCards: cards);
+    _provider.setupGame(isNetwork: true, role: 'host', isSolo: false, preShuffledCards: cards);
     _netManager.sendMessage('memory_setup', {'cards': cards});
   }
 
@@ -72,7 +73,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     Widget statusWidget;
     if (provider.isGameOver) {
       String winnerText;
-      if (provider.player1Score == provider.player2Score) {
+      if (provider.isSolo) {
+        winnerText = "GAME COMPLETED!";
+      } else if (provider.player1Score == provider.player2Score) {
         winnerText = "MATCH DRAW!";
       } else {
         final win1 = provider.player1Score > provider.player2Score;
@@ -91,7 +94,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     } else {
       String turnText;
       final isMyTurn = provider.isMyTurn;
-      if (provider.isNetworkGame) {
+      if (provider.isSolo) {
+        turnText = "SOLO PLAY";
+      } else if (provider.isNetworkGame) {
         turnText = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
       } else {
         turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN" : "PLAYER 2'S TURN";
@@ -100,7 +105,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
+          color: provider.isSolo
+              ? AppTheme.neonPink
+              : (provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet),
         ),
         child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       );
@@ -111,10 +118,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     final iWon = provider.isNetworkGame &&
         ((provider.myRole == 'host' && win1) || (provider.myRole == 'client' && !win1));
 
-    final isWinner = provider.isNetworkGame ? (provider.isGameOver && iWon) : hasWinner;
-    final winSubtitle = provider.isNetworkGame
-        ? 'YOU WON!'
-        : (win1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!');
+    final isWinner = provider.isSolo ? provider.isGameOver : (provider.isNetworkGame ? (provider.isGameOver && iWon) : hasWinner);
+    final winSubtitle = provider.isSolo
+        ? 'Completed in ${provider.moves} moves!'
+        : (provider.isNetworkGame
+            ? 'YOU WON!'
+            : (win1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!'));
 
     return GameShell(
       title: 'Memory Match',
@@ -122,14 +131,15 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
-      onReset: provider.isNetworkGame && provider.myRole != 'host'
+      isInProgress: !provider.isGameOver && (provider.flipped.contains(true) || provider.matched.contains(true)),
+      onReset: provider.isNetworkGame && provider.myRole != 'host' && provider.isGameOver
           ? null
           : () {
               if (provider.isNetworkGame) {
                 _generateAndSyncNetworkGame();
                 netManager.sendMessage('memory_reset', {});
               } else {
-                provider.setupGame(isNetwork: false, role: 'host');
+                provider.setupGame(isNetwork: false, role: 'host', isSolo: provider.isSolo);
               }
             },
       child: Column(
@@ -139,18 +149,33 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildPlayerScore(
-                provider.isNetworkGame ? (provider.myRole == 'host' ? "YOU (P1)" : "OPPONENT (P1)") : "PLAYER 1",
-                provider.player1Score,
-                AppTheme.neonCyan,
-                provider.isPlayer1Turn,
-              ),
-              _buildPlayerScore(
-                provider.isNetworkGame ? (provider.myRole == 'client' ? "YOU (P2)" : "OPPONENT (P2)") : "PLAYER 2",
-                provider.player2Score,
-                AppTheme.neonViolet,
-                !provider.isPlayer1Turn,
-              ),
+              if (provider.isSolo) ...[
+                _buildPlayerScore(
+                  "PAIRS MATCHED",
+                  provider.player1Score,
+                  AppTheme.neonCyan,
+                  true,
+                ),
+                _buildPlayerScore(
+                  "TOTAL MOVES",
+                  provider.moves,
+                  AppTheme.neonPink,
+                  false,
+                ),
+              ] else ...[
+                _buildPlayerScore(
+                  provider.isNetworkGame ? (provider.myRole == 'host' ? "YOU (P1)" : "OPPONENT (P1)") : "PLAYER 1",
+                  provider.player1Score,
+                  AppTheme.neonCyan,
+                  provider.isPlayer1Turn,
+                ),
+                _buildPlayerScore(
+                  provider.isNetworkGame ? (provider.myRole == 'client' ? "YOU (P2)" : "OPPONENT (P2)") : "PLAYER 2",
+                  provider.player2Score,
+                  AppTheme.neonViolet,
+                  !provider.isPlayer1Turn,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 24),

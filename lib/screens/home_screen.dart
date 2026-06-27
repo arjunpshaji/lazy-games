@@ -1,12 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/network_manager.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/liquid_glass_background.dart';
 import '../widgets/glass_button.dart';
-import '../widgets/jumping_letters_text.dart';
+import '../widgets/app_snackbar.dart';
+import '../utils/responsive_layout.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class GameInfo {
@@ -17,6 +20,7 @@ class GameInfo {
   final IconData icon;
   final Color color;
   final String route;
+  final bool supportsSinglePlayer;
   final bool supportsMultiplayer;
 
   GameInfo({
@@ -27,6 +31,7 @@ class GameInfo {
     required this.icon,
     required this.color,
     required this.route,
+    required this.supportsSinglePlayer,
     required this.supportsMultiplayer,
   });
 }
@@ -55,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.grid_3x3,
       color: AppTheme.neonCyan,
       route: '/tic_tac_toe',
+      supportsSinglePlayer: false,
       supportsMultiplayer: true,
     ),
     GameInfo(
@@ -65,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.grid_on,
       color: AppTheme.neonGreen,
       route: '/sudoku',
+      supportsSinglePlayer: true,
       supportsMultiplayer: false,
     ),
     GameInfo(
@@ -75,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.grid_view,
       color: AppTheme.neonOrange,
       route: '/2048',
+      supportsSinglePlayer: true,
       supportsMultiplayer: false,
     ),
     GameInfo(
@@ -85,7 +93,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.style,
       color: AppTheme.neonPink,
       route: '/memory_match',
-      supportsMultiplayer: false,
+      supportsSinglePlayer: true,
+      supportsMultiplayer: true,
     ),
     GameInfo(
       id: 'connect_four',
@@ -95,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.view_column,
       color: AppTheme.neonCyan,
       route: '/connect_four',
+      supportsSinglePlayer: false,
       supportsMultiplayer: true,
     ),
     GameInfo(
@@ -105,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.dangerous,
       color: AppTheme.neonPink,
       route: '/minesweeper',
+      supportsSinglePlayer: true,
       supportsMultiplayer: false,
     ),
     GameInfo(
@@ -115,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.translate,
       color: AppTheme.neonGreen,
       route: '/word_search',
+      supportsSinglePlayer: true,
       supportsMultiplayer: false,
     ),
     GameInfo(
@@ -125,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.extension,
       color: AppTheme.neonOrange,
       route: '/sliding_puzzle',
+      supportsSinglePlayer: true,
       supportsMultiplayer: false,
     ),
     GameInfo(
@@ -135,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: Icons.casino,
       color: AppTheme.neonViolet,
       route: '/checkers',
+      supportsSinglePlayer: false,
       supportsMultiplayer: true,
     ),
   ];
@@ -198,6 +212,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final filteredGames = _selectedCategory == 'All'
         ? _games
         : _games.where((game) => game.category == _selectedCategory).toList();
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double horizontalPadding = isDesktop
+        ? (screenWidth - 850).clamp(80.0, double.infinity) / 2
+        : 20.0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -212,8 +231,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // Dashboard Header
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20.0,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
                       vertical: 24.0,
                     ),
                     child: Row(
@@ -222,31 +241,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            JumpingLettersText(
-                              text: 'LAZY GAMES',
-                              style: GoogleFonts.getFont(
-                                'Caveat',
-                                textStyle: AppTheme.displayLgMobile.copyWith(
-                                  letterSpacing: 3,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: const [
-                                    Shadow(
-                                      color: AppTheme.neonCyan,
-                                      blurRadius: 10,
-                                    ),
-                                    Shadow(
-                                      color: AppTheme.neonViolet,
-                                      blurRadius: 20,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
                             Text(
                               'Select a game & play together',
                               style: GoogleFonts.getFont(
-                                "Montserrat",
+                                "Caveat",
                                 textStyle: AppTheme.bodyMd.copyWith(
+                                  fontSize: 22,
                                   color: AppTheme.textSecondary,
                                   letterSpacing: 0.5,
                                 ),
@@ -268,7 +268,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalPadding,
+                        ),
                         itemCount: _categories.length,
                         itemBuilder: (context, idx) {
                           final cat = _categories[idx];
@@ -321,15 +323,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Responsive Grid of Game Cards
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 220,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 0.9,
-                        ),
+                    gridDelegate: isDesktop
+                        ? const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 24,
+                            crossAxisSpacing: 24,
+                            childAspectRatio: 1.05,
+                          )
+                        : const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 220,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 0.9,
+                          ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final game = filteredGames[index];
 
@@ -597,50 +605,121 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 24),
 
-                    // Button 1: Pass & Play / Play Solo
-                    GlassButton(
-                      color: game.color,
-                      icon: Icon(
-                        game.supportsMultiplayer
-                            ? Icons.person_pin
-                            : Icons.play_arrow,
-                        size: 20,
+                    // Options buttons depending on capabilities
+                    if (game.supportsSinglePlayer &&
+                        game.supportsMultiplayer) ...[
+                      // Supports both!
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.play_arrow, size: 20),
+                        label: const Text('Play Solo'),
+                        isPrimary: true,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Provider.of<NetworkManager>(
+                            context,
+                            listen: false,
+                          ).stop();
+                          Navigator.pushNamed(
+                            context,
+                            game.route,
+                            arguments: {'network': false, 'isSolo': true},
+                          );
+                        },
                       ),
-                      label: Text(
-                        game.supportsMultiplayer
-                            ? 'Pass & Play (Same Device)'
-                            : 'Play Solo',
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.person_pin, size: 20),
+                        label: const Text('Pass & Play (Same Device)'),
+                        isPrimary: false,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Provider.of<NetworkManager>(
+                            context,
+                            listen: false,
+                          ).stop();
+                          Navigator.pushNamed(
+                            context,
+                            game.route,
+                            arguments: {'network': false, 'isSolo': false},
+                          );
+                        },
                       ),
-                      isPrimary: true,
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        Provider.of<NetworkManager>(
-                          context,
-                          listen: false,
-                        ).stop();
-                        Navigator.pushNamed(
-                          context,
-                          game.route,
-                          arguments: {'network': false},
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Button 2: Local Network Play
-                    GlassButton(
-                      color: game.color,
-                      icon: const Icon(Icons.wifi, size: 20),
-                      label: const Text('Local Network (2 Devices)'),
-                      hasShimmer: game.supportsMultiplayer,
-                      isPrimary: false,
-                      onPressed: game.supportsMultiplayer
-                          ? () {
-                              Navigator.pop(sheetContext);
-                              _showNetworkLobby(context, game);
-                            }
-                          : null,
-                    ),
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.wifi, size: 20),
+                        label: const Text('Local Network (2 Devices)'),
+                        hasShimmer: true,
+                        isPrimary: false,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _showNetworkLobby(context, game);
+                        },
+                      ),
+                    ] else if (game.supportsMultiplayer) ...[
+                      // Multiplayer only
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.person_pin, size: 20),
+                        label: const Text('Pass & Play (Same Device)'),
+                        isPrimary: true,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Provider.of<NetworkManager>(
+                            context,
+                            listen: false,
+                          ).stop();
+                          Navigator.pushNamed(
+                            context,
+                            game.route,
+                            arguments: {'network': false, 'isSolo': false},
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.wifi, size: 20),
+                        label: const Text('Local Network (2 Devices)'),
+                        hasShimmer: true,
+                        isPrimary: false,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _showNetworkLobby(context, game);
+                        },
+                      ),
+                    ] else ...[
+                      // Single Player only
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.play_arrow, size: 20),
+                        label: const Text('Play Solo'),
+                        isPrimary: true,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          Provider.of<NetworkManager>(
+                            context,
+                            listen: false,
+                          ).stop();
+                          Navigator.pushNamed(
+                            context,
+                            game.route,
+                            arguments: {'network': false, 'isSolo': true},
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: game.color,
+                        icon: const Icon(Icons.wifi, size: 20),
+                        label: const Text('Local Network (2 Devices)'),
+                        hasShimmer: false,
+                        isPrimary: false,
+                        onPressed: null,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -744,10 +823,7 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                       const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation(AppTheme.neonCyan),
-                        ),
+                        child: CupertinoActivityIndicator(radius: 10),
                       ),
                   ],
                 ),
@@ -832,8 +908,8 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                                   Icons.wifi_find,
                                   color: AppTheme.neonGreen,
                                 ),
-                                const SizedBox(height: 8),
-                                const Text(
+                                SizedBox(height: 8),
+                                Text(
                                   'JOIN GAME',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
@@ -916,10 +992,9 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                     const Center(
                       child: Column(
                         children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(
-                              AppTheme.neonGreen,
-                            ),
+                          CupertinoActivityIndicator(
+                            radius: 10,
+                            color: AppTheme.neonGreen,
                           ),
                           SizedBox(height: 12),
                           Text(
@@ -960,6 +1035,9 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                         (_) => true,
                         orElse: () => TextInputType.number,
                       ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9\.\:]')),
+                      ],
                       onSubmitted: (val) async {
                         final ip = val.trim();
                         if (ip.isNotEmpty) {
@@ -967,11 +1045,9 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                             await netManager.joinGame(ip, 4040);
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to connect: $e'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
+                              AppSnackBar.showError(
+                                context,
+                                'Failed to connect: $e',
                               );
                             }
                           }
@@ -989,11 +1065,9 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                             await netManager.joinGame(ip, 4040);
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to connect: $e'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
+                              AppSnackBar.showError(
+                                context,
+                                'Failed to connect: $e',
                               );
                             }
                           }

@@ -70,8 +70,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
+                              const Color(0xFF00F0FF).withOpacity(0.55),
                               const Color(0xFF00F0FF).withOpacity(0.35),
-                              const Color(0xFF00F0FF).withOpacity(0.25),
                               const Color(0xFF00F0FF).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -90,8 +90,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
+                              const Color(0xFFC000FF).withOpacity(0.55),
                               const Color(0xFFC000FF).withOpacity(0.35),
-                              const Color(0xFFC000FF).withOpacity(0.25),
                               const Color(0xFFC000FF).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -110,8 +110,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
+                              const Color(0xFFFF007F).withOpacity(0.55),
                               const Color(0xFFFF007F).withOpacity(0.35),
-                              const Color(0xFFFF007F).withOpacity(0.25),
                               const Color(0xFFFF007F).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],
@@ -130,8 +130,8 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
+                              const Color(0xFF00FF66).withOpacity(0.55),
                               const Color(0xFF00FF66).withOpacity(0.35),
-                              const Color(0xFF00FF66).withOpacity(0.25),
                               const Color(0xFF00FF66).withOpacity(0.0),
                             ],
                             stops: const [0.0, 0.5, 1.0],

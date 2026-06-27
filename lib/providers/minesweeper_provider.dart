@@ -85,7 +85,7 @@ class MinesweeperProvider extends ChangeNotifier {
   final int cols = 10;
   final int numMines = 12;
   
-  List<MinesweeperCell> _grid = [];
+  List<MinesweeperCell> _grid = List.generate(100, (_) => MinesweeperCell());
   bool _isGameOver = false;
   bool _isWon = false;
   bool _isLoading = false;

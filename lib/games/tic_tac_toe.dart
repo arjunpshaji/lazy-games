@@ -93,12 +93,15 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
-      onReset: () {
-        provider.resetBoard();
-        if (provider.isNetworkGame) {
-          netManager.sendMessage('ttt_reset', {});
-        }
-      },
+      isInProgress: provider.winner == null && provider.board.any((cell) => cell.isNotEmpty),
+      onReset: provider.isNetworkGame && provider.mySymbol != 'X' && provider.winner != null
+          ? null
+          : () {
+              provider.resetBoard();
+              if (provider.isNetworkGame) {
+                netManager.sendMessage('ttt_reset', {});
+              }
+            },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

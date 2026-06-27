@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/connect_four_provider.dart';
 import '../../services/network_manager.dart';
@@ -16,6 +17,7 @@ class ConnectFourScreen extends StatefulWidget {
 class _ConnectFourScreenState extends State<ConnectFourScreen> {
   late NetworkManager _netManager;
   late ConnectFourProvider _provider;
+  bool _wasMyTurn = false;
 
   @override
   void initState() {
@@ -23,12 +25,15 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<ConnectFourProvider>(context, listen: false);
-      
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
       _provider.setupGame(isNetwork: isNetwork, role: role);
+      _wasMyTurn = _provider.isMyTurn;
+      _provider.addListener(_onProviderChanged);
 
       if (isNetwork) {
         _netManager.onMessageReceived = (packet) {
@@ -55,11 +60,14 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
         winnerText = "MATCH DRAW!";
       } else {
         if (provider.isNetworkGame) {
-          final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                       (provider.myRole == 'client' && provider.winner == 2);
+          final iWon =
+              (provider.myRole == 'host' && provider.winner == 1) ||
+              (provider.myRole == 'client' && provider.winner == 2);
           winnerText = iWon ? "YOU WIN!" : "OPPONENT WINS!";
         } else {
-          winnerText = provider.winner == 1 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
+          winnerText = provider.winner == 1
+              ? "PLAYER 1 WINS!"
+              : "PLAYER 2 WINS!";
         }
       }
       statusWidget = Container(
@@ -67,7 +75,14 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
         decoration: AppTheme.neonBorderDecoration(
           color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
         ),
-        child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+        child: Text(
+          winnerText,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       String turnText;
@@ -75,21 +90,23 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       if (provider.isNetworkGame) {
         turnText = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
       } else {
-        turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (CYAN)" : "PLAYER 2'S TURN (VIOLET)";
+        turnText = provider.isPlayer1Turn
+            ? "PLAYER 1'S TURN (CYAN)"
+            : "PLAYER 2'S TURN (VIOLET)";
       }
 
-      statusWidget = Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
-        ),
-        child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      statusWidget = _PulsingTurnIndicator(
+        text: turnText,
+        color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
+        pulse: provider.isNetworkGame ? isMyTurn : true,
       );
     }
 
-    final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                 (provider.myRole == 'client' && provider.winner == 2);
-    final isWinner = provider.winner != 0 &&
+    final iWon =
+        (provider.myRole == 'host' && provider.winner == 1) ||
+        (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner =
+        provider.winner != 0 &&
         provider.winner != 3 &&
         (!provider.isNetworkGame || iWon);
     final winSubtitle = provider.isNetworkGame
@@ -98,11 +115,17 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
 
     return GameShell(
       title: 'Connect Four',
-      rules: 'Select a column to drop a chip. First to align 4 chips in a row (horizontally, vertically, or diagonally) wins.',
+      rules:
+          'Select a column to drop a chip. First to align 4 chips in a row (horizontally, vertically, or diagonally) wins.',
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
-      onReset: provider.isNetworkGame && provider.myRole != 'host'
+      isInProgress:
+          provider.winner == 0 && provider.board.any((cell) => cell != 0),
+      onReset:
+          provider.isNetworkGame &&
+              provider.myRole != 'host' &&
+              provider.winner != 0
           ? null
           : () {
               if (provider.isNetworkGame) {
@@ -119,7 +142,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
             Text(
               "Your Color: ${provider.myRole == 'host' ? 'Cyan' : 'Violet'}",
               style: TextStyle(
-                color: provider.myRole == 'host' ? AppTheme.neonCyan : AppTheme.neonViolet,
+                color: provider.myRole == 'host'
+                    ? AppTheme.neonCyan
+                    : AppTheme.neonViolet,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -135,7 +160,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.arrow_downward),
                   color: provider.isMyTurn && provider.winner == 0
-                      ? (provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet)
+                      ? (provider.isPlayer1Turn
+                            ? AppTheme.neonCyan
+                            : AppTheme.neonViolet)
                       : Colors.white24,
                   onPressed: () {
                     if (provider.isMyTurn && provider.winner == 0) {
@@ -160,13 +187,16 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
             decoration: BoxDecoration(
               color: Colors.blue[900]?.withOpacity(0.85),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue[600]!, width: 3),
+              // border: Border.all(color: Colors.blue[600]!, width: 3),
+              border: provider.isPlayer1Turn
+                  ? Border.all(color: AppTheme.neonCyan, width: 3)
+                  : Border.all(color: AppTheme.neonViolet, width: 3),
               boxShadow: [
                 BoxShadow(
                   color: Colors.blue[900]!.withOpacity(0.5),
                   blurRadius: 15,
                   spreadRadius: 2,
-                )
+                ),
               ],
             ),
             child: GridView.builder(
@@ -181,7 +211,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
               itemBuilder: (context, index) {
                 final cell = provider.board[index];
                 final isWinning = provider.winningCells.contains(index);
-                
+
                 Color discColor = Colors.transparent;
                 if (cell == 1) {
                   discColor = AppTheme.neonCyan;
@@ -197,12 +227,14 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                       color: isWinning ? AppTheme.neonGreen : Colors.blue[800]!,
                       width: isWinning ? 3.0 : 1.5,
                     ),
-                    boxShadow: isWinning ? [
-                      BoxShadow(
-                        color: AppTheme.neonGreen.withOpacity(0.6),
-                        blurRadius: 10,
-                      )
-                    ] : [],
+                    boxShadow: isWinning
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.neonGreen.withOpacity(0.6),
+                              blurRadius: 10,
+                            ),
+                          ]
+                        : [],
                   ),
                   child: FractionallySizedBox(
                     widthFactor: 0.85,
@@ -213,12 +245,14 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                       decoration: BoxDecoration(
                         color: discColor,
                         shape: BoxShape.circle,
-                        boxShadow: cell != 0 ? [
-                          BoxShadow(
-                            color: discColor.withOpacity(0.5),
-                            blurRadius: 6,
-                          )
-                        ] : [],
+                        boxShadow: cell != 0
+                            ? [
+                                BoxShadow(
+                                  color: discColor.withOpacity(0.5),
+                                  blurRadius: 6,
+                                ),
+                              ]
+                            : [],
                       ),
                     ),
                   ),
@@ -228,6 +262,126 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  void dispose() {
+    try {
+      _provider.removeListener(_onProviderChanged);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onProviderChanged() {
+    if (!mounted) return;
+    final isMyTurn = _provider.isMyTurn;
+    if (_provider.isNetworkGame &&
+        isMyTurn &&
+        !_wasMyTurn &&
+        _provider.winner == 0) {
+      HapticFeedback.lightImpact();
+    }
+    _wasMyTurn = isMyTurn;
+  }
+}
+
+class _PulsingTurnIndicator extends StatefulWidget {
+  final String text;
+  final Color color;
+  final bool pulse;
+
+  const _PulsingTurnIndicator({
+    required this.text,
+    required this.color,
+    required this.pulse,
+  });
+
+  @override
+  State<_PulsingTurnIndicator> createState() => _PulsingTurnIndicatorState();
+}
+
+class _PulsingTurnIndicatorState extends State<_PulsingTurnIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+
+    if (widget.pulse) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulsingTurnIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pulse != oldWidget.pulse) {
+      if (widget.pulse) {
+        _controller.repeat(reverse: true);
+      } else {
+        _controller.stop();
+        _controller.animateTo(0.0, duration: const Duration(milliseconds: 300));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final glow = _animation.value;
+        final scale = widget.pulse ? 1.0 + (0.04 * glow) : 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+            decoration: BoxDecoration(
+              color: widget.color.withOpacity(0.06 + 0.08 * glow),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: widget.color.withOpacity(0.3 + 0.7 * glow),
+                width: 1.5 + 1.0 * glow,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withOpacity(0.1 + 0.4 * glow),
+                  blurRadius: 8 + 12 * glow,
+                  spreadRadius: 0.5 + 1.5 * glow,
+                ),
+              ],
+            ),
+            child: Text(
+              widget.text,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: widget.color.withOpacity(0.6 * glow),
+                    blurRadius: 6 * glow,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
