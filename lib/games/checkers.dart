@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lazy_games/services/audio_service.dart';
 import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/providers/checkers_provider.dart';
@@ -16,6 +17,8 @@ class CheckersScreen extends StatefulWidget {
 class _CheckersScreenState extends State<CheckersScreen> {
   late NetworkManager _netManager;
   late CheckersProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
 
   @override
   void initState() {
@@ -27,11 +30,17 @@ class _CheckersScreenState extends State<CheckersScreen> {
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      _provider.setupGame(isNetwork: isNetwork, role: role);
-
-      if (isNetwork) {
+      if (_isOnline) {
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole =
+            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+      } else if (isNetwork) {
+        _provider.setupGame(isNetwork: isNetwork, role: role);
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'checkers_move') {
             final from = packet['data']['from'] as int;
@@ -41,8 +50,31 @@ class _CheckersScreenState extends State<CheckersScreen> {
             _provider.setupGame(isNetwork: true, role: role);
           }
         };
+      } else {
+        _provider.setupGame(isNetwork: false, role: role);
       }
     });
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'checkers_online_reset') {
+        final onlineRole =
+            _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+      } else if (data.containsKey('board')) {
+        final board = (data['board'] as List).cast<int>();
+        final isPlayer1Turn = data['isPlayer1Turn'] as bool;
+        _provider.applyOnlineState(board: board, isPlayer1Turn: isPlayer1Turn);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
+    super.dispose();
   }
 
   @override
@@ -111,6 +143,7 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
       isInProgress: provider.winner == 0,
       onReset:
           provider.isNetworkGame &&
@@ -118,7 +151,12 @@ class _CheckersScreenState extends State<CheckersScreen> {
               provider.winner != 0
           ? null
           : () {
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                final onlineRole =
+                    _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+                _provider.setupGame(isNetwork: true, role: onlineRole);
+                _roomManager?.sendGameState({'type': 'checkers_online_reset'});
+              } else if (provider.isNetworkGame) {
                 _provider.setupGame(isNetwork: true, role: provider.myRole);
                 netManager.sendMessage('checkers_reset', {});
               } else {
@@ -182,7 +220,12 @@ class _CheckersScreenState extends State<CheckersScreen> {
                             final success = provider.makeMove(index);
                             if (success) {
                               AudioService.instance.gameMove();
-                              if (provider.isNetworkGame) {
+                              if (_isOnline) {
+                                _roomManager?.sendGameState({
+                                  'board': provider.board,
+                                  'isPlayer1Turn': provider.isPlayer1Turn,
+                                });
+                              } else if (provider.isNetworkGame) {
                                 netManager.sendMessage('checkers_move', {
                                   'from': fromIdx,
                                   'to': index,

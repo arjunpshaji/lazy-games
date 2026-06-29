@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lazy_games/providers/memory_match_provider.dart';
 import 'package:lazy_games/services/audio_service.dart';
 import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,8 @@ class MemoryMatchScreen extends StatefulWidget {
 class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   late NetworkManager _netManager;
   late MemoryMatchProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
 
   final List<String> _cardEmojis = [
     '🐶',
@@ -29,20 +32,39 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     '🎮',
   ];
 
+  bool _initialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<MemoryMatchProvider>(context, listen: false);
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final isSolo = args?['isSolo'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      if (isNetwork) {
+      if (_isOnline) {
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole =
+            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+        if (onlineRole == 'host') {
+          _generateAndSyncOnlineGame();
+        } else {
+          _provider.setupGame(
+            isNetwork: true,
+            role: onlineRole,
+            isSolo: false,
+            preShuffledCards: List.generate(16, (_) => -1),
+          );
+        }
+      } else if (isNetwork) {
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'memory_setup') {
             final cards = List<int>.from(packet['data']['cards']);
@@ -66,7 +88,51 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       } else {
         _provider.setupGame(isNetwork: false, role: role, isSolo: isSolo);
       }
-    });
+    }
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    final onlineRole =
+        _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'memory_online_reset') {
+        if (onlineRole == 'host') {
+          _generateAndSyncOnlineGame();
+        }
+      } else if (data.containsKey('cards')) {
+        final cards = (data['cards'] as List).cast<int>();
+        _provider.setupGame(
+          isNetwork: true,
+          role: onlineRole,
+          isSolo: false,
+          preShuffledCards: cards,
+        );
+      } else if (data.containsKey('tapIndex')) {
+        final idx = data['tapIndex'] as int;
+        _provider.handleNetworkTap(idx);
+      }
+    }
+  }
+
+  void _generateAndSyncOnlineGame() {
+    final cards = List.generate(8, (i) => i) + List.generate(8, (i) => i);
+    cards.shuffle();
+    final onlineRole =
+        _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+    _provider.setupGame(
+      isNetwork: true,
+      role: onlineRole,
+      isSolo: false,
+      preShuffledCards: cards,
+    );
+    _roomManager?.sendGameState({'cards': cards});
+  }
+
+  @override
+  void dispose() {
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
+    super.dispose();
   }
 
   void _generateAndSyncNetworkGame() {
@@ -170,6 +236,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
       isInProgress:
           !provider.isGameOver &&
           (provider.flipped.contains(true) || provider.matched.contains(true)),
@@ -179,7 +246,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
               provider.isGameOver
           ? null
           : () {
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                _roomManager?.sendGameState({'type': 'memory_online_reset'});
+                final onlineRole =
+                    _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+                if (onlineRole == 'host') _generateAndSyncOnlineGame();
+              } else if (provider.isNetworkGame) {
                 _generateAndSyncNetworkGame();
                 netManager.sendMessage('memory_reset', {});
               } else {
@@ -260,10 +332,14 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                           !provider.isWaiting) {
                         AudioService.instance.cardFlip();
                         final success = await provider.handleCardTap(index);
-                        if (success && provider.isNetworkGame) {
-                          netManager.sendMessage('memory_tap', {
-                            'index': index,
-                          });
+                        if (success) {
+                          if (_isOnline) {
+                            _roomManager?.sendGameState({'tapIndex': index});
+                          } else if (provider.isNetworkGame) {
+                            netManager.sendMessage('memory_tap', {
+                              'index': index,
+                            });
+                          }
                         }
                       }
                     },

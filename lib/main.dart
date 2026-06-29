@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +6,10 @@ import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'services/network_manager.dart';
 import 'services/audio_service.dart';
+import 'services/supabase_service.dart';
+import 'services/supabase_room_manager.dart';
+import 'services/app_config_service.dart';
+import 'services/admob_service.dart';
 
 // Screens
 import 'screens/splash_screen.dart';
@@ -32,11 +37,29 @@ import 'games/checkers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Core services
   await AudioService.instance.init();
+
+  // Supabase (anonymous auth + session restore)
+  await SupabaseService.initialize();
+
+  // AdMob (mobile only; no-op on web)
+  if (!kIsWeb) {
+    await AdMobService.instance.initialize();
+  }
+
+  // Prime the kill-switch cache on startup
+  AppConfigService.instance.fetchAndCacheConfig();
+
   runApp(
     MultiProvider(
       providers: [
+        // LAN multiplayer
         ChangeNotifierProvider(create: (_) => NetworkManager()),
+        // Online multiplayer (Supabase)
+        ChangeNotifierProvider(create: (_) => SupabaseRoomManager()),
+        // Game providers
         ChangeNotifierProvider(create: (_) => TicTacToeProvider()),
         ChangeNotifierProvider(create: (_) => SudokuProvider()),
         ChangeNotifierProvider(create: (_) => Game2048Provider()),

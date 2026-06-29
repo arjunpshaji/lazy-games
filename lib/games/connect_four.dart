@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:lazy_games/providers/connect_four_provider.dart';
 import 'package:lazy_games/services/network_manager.dart';
 import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 
@@ -17,25 +18,34 @@ class ConnectFourScreen extends StatefulWidget {
 class _ConnectFourScreenState extends State<ConnectFourScreen> {
   late NetworkManager _netManager;
   late ConnectFourProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
   bool _wasMyTurn = false;
 
+  bool _initialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<ConnectFourProvider>(context, listen: false);
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      _provider.setupGame(isNetwork: isNetwork, role: role);
-      _wasMyTurn = _provider.isMyTurn;
-      _provider.addListener(_onProviderChanged);
-
-      if (isNetwork) {
+      if (_isOnline) {
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole =
+            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+      } else if (isNetwork) {
+        _provider.setupGame(isNetwork: isNetwork, role: role);
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'c4_drop') {
             final col = packet['data']['column'] as int;
@@ -44,8 +54,27 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
             _provider.setupGame(isNetwork: true, role: role);
           }
         };
+      } else {
+        _provider.setupGame(isNetwork: false, role: role);
       }
-    });
+      _wasMyTurn = _provider.isMyTurn;
+      _provider.addListener(_onProviderChanged);
+    }
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'c4_online_reset') {
+        final onlineRole =
+            _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+      } else if (data.containsKey('board')) {
+        final board = (data['board'] as List).cast<int>();
+        final isPlayer1Turn = data['isPlayer1Turn'] as bool;
+        _provider.applyOnlineState(board: board, isPlayer1Turn: isPlayer1Turn);
+      }
+    }
   }
 
   @override
@@ -120,6 +149,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
       isInProgress:
           provider.winner == 0 && provider.board.any((cell) => cell != 0),
       onReset:
@@ -128,7 +158,12 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
               provider.winner != 0
           ? null
           : () {
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                final onlineRole =
+                    _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+                _provider.setupGame(isNetwork: true, role: onlineRole);
+                _roomManager?.sendGameState({'type': 'c4_online_reset'});
+              } else if (provider.isNetworkGame) {
                 _provider.setupGame(isNetwork: true, role: provider.myRole);
                 netManager.sendMessage('c4_reset', {});
               } else {
@@ -169,7 +204,12 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                       final success = provider.dropDisc(col);
                       if (success) {
                         AudioService.instance.gameMove();
-                        if (provider.isNetworkGame) {
+                        if (_isOnline) {
+                          _roomManager?.sendGameState({
+                            'board': provider.board,
+                            'isPlayer1Turn': provider.isPlayer1Turn,
+                          });
+                        } else if (provider.isNetworkGame) {
                           netManager.sendMessage('c4_drop', {'column': col});
                         }
                       }
@@ -270,6 +310,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
     try {
       _provider.removeListener(_onProviderChanged);
     } catch (_) {}
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
     super.dispose();
   }
 

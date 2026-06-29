@@ -24,7 +24,7 @@ class TicTacToeProvider extends ChangeNotifier {
   void setupGame({required bool isNetwork, required String role}) {
     _isNetworkGame = isNetwork;
     _mySymbol = (role == 'host') ? 'X' : 'O';
-    resetBoard(notify: false);
+    resetBoard(notify: true);
   }
 
   bool makeMove(int index) {
@@ -57,6 +57,15 @@ class TicTacToeProvider extends ChangeNotifier {
     _winner = null;
     _winningLine = [];
     if (notify) notifyListeners();
+  }
+
+  /// Apply board state received from Supabase Realtime (online game).
+  void applyOnlineState({required List<String> board, required bool isXTurn}) {
+    _board = List<String>.from(board);
+    _isXTurn = isXTurn;
+    // Re-check win state from the applied board
+    _checkGameState();
+    notifyListeners();
   }
 
   void _checkGameState() {

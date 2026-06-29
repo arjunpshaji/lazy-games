@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:lazy_games/providers/tic_tac_toe_provider.dart';
 import 'package:lazy_games/services/audio_service.dart';
 import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/widgets/glass_container.dart';
@@ -17,23 +18,35 @@ class TicTacToeScreen extends StatefulWidget {
 class _TicTacToeScreenState extends State<TicTacToeScreen> {
   late NetworkManager _netManager;
   late TicTacToeProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
+
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<TicTacToeProvider>(context, listen: false);
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      _provider.setupGame(isNetwork: isNetwork, role: role);
-
-      if (isNetwork) {
+      if (_isOnline) {
+        // ── Online (Supabase) path ──────────────────────────────────────
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole =
+            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+      } else if (isNetwork) {
+        // ── LAN path ───────────────────────────────────────────────────
+        _provider.setupGame(isNetwork: isNetwork, role: role);
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'ttt_move') {
             final idx = packet['data']['index'] as int;
@@ -42,8 +55,29 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
             _provider.resetBoard();
           }
         };
+      } else {
+        _provider.setupGame(isNetwork: false, role: role);
       }
-    });
+    }
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'ttt_online_reset') {
+        _provider.resetBoard();
+      } else if (data.containsKey('board')) {
+        final board = (data['board'] as List).cast<String>();
+        final isXTurn = data['isXTurn'] as bool;
+        _provider.applyOnlineState(board: board, isXTurn: isXTurn);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
+    super.dispose();
   }
 
   @override
@@ -107,17 +141,19 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
       isInProgress:
           provider.winner == null &&
           provider.board.any((cell) => cell.isNotEmpty),
       onReset:
-          provider.isNetworkGame &&
-              provider.mySymbol != 'X' &&
-              provider.winner != null
+          (provider.isNetworkGame && provider.mySymbol != 'X' &&
+              provider.winner != null)
           ? null
           : () {
               provider.resetBoard();
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                _roomManager?.sendGameState({'type': 'ttt_online_reset'});
+              } else if (provider.isNetworkGame) {
                 netManager.sendMessage('ttt_reset', {});
               }
             },
@@ -175,7 +211,12 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
                           } else {
                             AudioService.instance.gameMove();
                           }
-                          if (provider.isNetworkGame) {
+                          if (_isOnline) {
+                            _roomManager?.sendGameState({
+                              'board': provider.board,
+                              'isXTurn': provider.isXTurn,
+                            });
+                          } else if (provider.isNetworkGame) {
                             netManager.sendMessage('ttt_move', {
                               'index': index,
                             });

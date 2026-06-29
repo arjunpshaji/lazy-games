@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lazy_games/services/audio_service.dart';
 import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'liquid_glass_background.dart';
@@ -20,6 +21,8 @@ class GameShell extends StatefulWidget {
   final String? winTitle;
   final String? winSubtitle;
   final bool isInProgress;
+  /// Set to true when the game is an online (Supabase) session.
+  final bool isOnlineGame;
 
   const GameShell({
     super.key,
@@ -33,6 +36,7 @@ class GameShell extends StatefulWidget {
     this.winTitle,
     this.winSubtitle,
     this.isInProgress = true,
+    this.isOnlineGame = false,
   });
 
   @override
@@ -43,6 +47,7 @@ class _GameShellState extends State<GameShell> {
   bool _didFireWinSound = false;
   bool _isWaitingForApproval = false;
   BuildContext? _activeDialogContext;
+  late SupabaseRoomManager _roomManager;
   late NetworkManager _netManager;
 
   @override
@@ -50,11 +55,22 @@ class _GameShellState extends State<GameShell> {
     super.initState();
     _netManager = Provider.of<NetworkManager>(context, listen: false);
     _netManager.addMessageListener(_handleNetworkMessage);
+
+    _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+    if (widget.isOnlineGame) {
+      _roomManager.addMessageListener(_handleOnlineMessage);
+    }
   }
 
   @override
   void dispose() {
     _netManager.removeMessageListener(_handleNetworkMessage);
+    if (widget.isOnlineGame) {
+      _roomManager.removeMessageListener(_handleOnlineMessage);
+      if (_roomManager.isConnected) {
+        _roomManager.leaveRoom();
+      }
+    }
     _dismissActiveDialog();
     super.dispose();
   }
@@ -89,13 +105,81 @@ class _GameShellState extends State<GameShell> {
     }
   }
 
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (!mounted) return;
+    if (packet['type'] == 'room_abandoned') {
+      _showConnectionClosedDialog();
+      return;
+    }
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      final type = data['type'];
+      final sender = data['sender'] as String?;
+      final myRoleStr = _roomManager.role == OnlineRole.host ? 'host' : 'guest';
+
+      // Ignore our own database update broadcasts
+      if (sender == myRoleStr) return;
+
+      if (type == 'reload_request') {
+        if (_isWaitingForApproval) {
+          // Simultaneous requests: auto-approve
+          _dismissActiveDialog();
+          _isWaitingForApproval = false;
+          _roomManager.sendGameState({
+            'type': 'reload_approve',
+            'sender': myRoleStr,
+          });
+          if (_roomManager.role == OnlineRole.host) {
+            widget.onReset?.call();
+          }
+        } else {
+          _showOnlineApprovalPromptDialog();
+        }
+      } else if (type == 'reload_approve') {
+        if (_isWaitingForApproval) {
+          _dismissActiveDialog();
+          _isWaitingForApproval = false;
+          if (_roomManager.role == OnlineRole.host) {
+            widget.onReset?.call();
+          }
+        }
+      } else if (type == 'reload_decline') {
+        if (_isWaitingForApproval) {
+          _dismissActiveDialog();
+          _isWaitingForApproval = false;
+          _showDeclinedDialog();
+        }
+      } else if (type == 'reload_cancel') {
+        _dismissActiveDialog();
+      }
+    }
+  }
+
   void _handleResetClick() {
+    if (widget.isOnlineGame) {
+      if (!_roomManager.isConnected) {
+        widget.onReset?.call();
+        return;
+      }
+      _initiateOnlineReloadFlow();
+      return;
+    }
     final netManager = Provider.of<NetworkManager>(context, listen: false);
     if (!netManager.isConnected || !widget.isInProgress) {
       widget.onReset?.call();
       return;
     }
     _initiateReloadFlow(netManager);
+  }
+
+  void _initiateOnlineReloadFlow() {
+    _isWaitingForApproval = true;
+    _showOnlineWaitingDialog();
+    final myRoleStr = _roomManager.role == OnlineRole.host ? 'host' : 'guest';
+    _roomManager.sendGameState({
+      'type': 'reload_request',
+      'sender': myRoleStr,
+    });
   }
 
   void _initiateReloadFlow(NetworkManager netManager) {
@@ -248,6 +332,223 @@ class _GameShellState extends State<GameShell> {
     );
   }
 
+  void _showOnlineWaitingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: const Color(0xFF1F1145).withOpacity(0.40),
+      builder: (dialogContext) {
+        _activeDialogContext = dialogContext;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: GlassContainer(
+                  elevation: GlassElevation.high,
+                  borderColor: AppTheme.neonCyan.withOpacity(0.35),
+                  borderRadius: 24,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Restart Request Sent',
+                        style: AppTheme.headlineMd.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      const Center(child: LottieLoader(size: 220)),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Waiting for opponent to approve...',
+                        style: AppTheme.bodyMd.copyWith(
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      GlassButton(
+                        isFullWidth: true,
+                        color: AppTheme.neonPink,
+                        label: const Text('Cancel Request'),
+                        onPressed: () {
+                          _dismissActiveDialog();
+                          final myRoleStr = _roomManager.role == OnlineRole.host ? 'host' : 'guest';
+                          _roomManager.sendGameState({
+                            'type': 'reload_cancel',
+                            'sender': myRoleStr,
+                          });
+                          _isWaitingForApproval = false;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showOnlineApprovalPromptDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: const Color(0xFF1F1145).withOpacity(0.40),
+      builder: (dialogContext) {
+        _activeDialogContext = dialogContext;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: GlassContainer(
+                  elevation: GlassElevation.high,
+                  borderColor: AppTheme.neonPink.withOpacity(0.35),
+                  borderRadius: 24,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Restart Game?',
+                        style: AppTheme.headlineMd.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your opponent wants to restart the game. Do you approve?',
+                        style: AppTheme.bodyMd.copyWith(
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GlassButton(
+                              isFullWidth: true,
+                              color: AppTheme.neonPink,
+                              label: const Text('Decline'),
+                              onPressed: () {
+                                _dismissActiveDialog();
+                                final myRoleStr = _roomManager.role == OnlineRole.host ? 'host' : 'guest';
+                                _roomManager.sendGameState({
+                                  'type': 'reload_decline',
+                                  'sender': myRoleStr,
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GlassButton(
+                              isFullWidth: true,
+                              color: AppTheme.neonGreen,
+                              label: const Text('Approve'),
+                              onPressed: () {
+                                _dismissActiveDialog();
+                                final myRoleStr = _roomManager.role == OnlineRole.host ? 'host' : 'guest';
+                                _roomManager.sendGameState({
+                                  'type': 'reload_approve',
+                                  'sender': myRoleStr,
+                                });
+                                if (_roomManager.role == OnlineRole.host) {
+                                  widget.onReset?.call();
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showConnectionClosedDialog() {
+    _dismissActiveDialog();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: const Color(0xFF1F1145).withOpacity(0.60),
+      builder: (dialogContext) {
+        _activeDialogContext = dialogContext;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: GlassContainer(
+                  elevation: GlassElevation.high,
+                  borderColor: AppTheme.neonPink.withOpacity(0.35),
+                  borderRadius: 24,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Connection Closed',
+                        style: AppTheme.headlineMd.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your opponent has left the room or disconnected.',
+                        style: AppTheme.bodyMd.copyWith(
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      GlassButton(
+                        isFullWidth: true,
+                        color: AppTheme.neonPink,
+                        label: const Text('Return to Lobby'),
+                        onPressed: () {
+                          _dismissActiveDialog();
+                          Navigator.of(context).pop(); // Pops the game screen
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showDeclinedDialog() {
     showDialog(
       context: context,
@@ -326,6 +627,7 @@ class _GameShellState extends State<GameShell> {
   @override
   Widget build(BuildContext context) {
     final netManager = Provider.of<NetworkManager>(context);
+    final roomManager = Provider.of<SupabaseRoomManager>(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -335,6 +637,86 @@ class _GameShellState extends State<GameShell> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: AppTheme.neonCyan),
           onPressed: () async {
+            // ── Online (Supabase) leave ──────────────────────────────────
+            if (widget.isOnlineGame) {
+              final roomManager = Provider.of<SupabaseRoomManager>(
+                context,
+                listen: false,
+              );
+              final leave = await showDialog<bool>(
+                    context: context,
+                    barrierColor: const Color(0xFF1F1145).withOpacity(0.40),
+                    builder: (context) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: GlassContainer(
+                              elevation: GlassElevation.high,
+                              borderColor: AppTheme.neonPink.withOpacity(0.35),
+                              borderRadius: 24,
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'Leave Online Match?',
+                                    style: AppTheme.headlineMd.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'This will abandon the online game session.',
+                                    style: AppTheme.bodyMd.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: Text(
+                                          'Cancel',
+                                          style: AppTheme.bodyMd.copyWith(
+                                            color: AppTheme.textSecondary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      GlassButton(
+                                        isFullWidth: false,
+                                        color: AppTheme.neonPink,
+                                        label: const Text('Leave'),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ) ??
+                  false;
+              if (leave) {
+                await roomManager.leaveRoom();
+                if (context.mounted) Navigator.of(context).pop();
+              }
+              return;
+            }
+            // ── LAN leave ───────────────────────────────────────────────
             if (netManager.isConnected) {
               final leave =
                   await showDialog<bool>(
@@ -442,7 +824,35 @@ class _GameShellState extends State<GameShell> {
             child: Column(
               children: [
                 // Network Indicator Bar
-                if (netManager.isConnected)
+                if (widget.isOnlineGame)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 16,
+                    ),
+                    color: AppTheme.neonViolet.withOpacity(0.15),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.public,
+                          size: 16,
+                          color: AppTheme.neonViolet,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Online — ${roomManager.role == OnlineRole.host ? "Host" : "Guest"}',
+                          style: const TextStyle(
+                            color: AppTheme.neonViolet,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (netManager.isConnected)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -500,11 +910,12 @@ class _GameShellState extends State<GameShell> {
             isVisible: widget.isWinner,
             title: widget.winTitle ?? 'CONGRATULATIONS!',
             subtitle: widget.winSubtitle ?? 'YOU WON!',
-            onPlayAgain:
+            isOnlineOrNetworkGuest:
+                (widget.isOnlineGame &&
+                    roomManager.role == OnlineRole.guest) ||
                 (_netManager.isConnected &&
-                    _netManager.role == NetworkRole.client)
-                ? null
-                : (widget.onReset != null ? _handleResetClick : null),
+                    _netManager.role == NetworkRole.client),
+            onPlayAgain: widget.onReset != null ? _handleResetClick : null,
           ),
         ],
       ),

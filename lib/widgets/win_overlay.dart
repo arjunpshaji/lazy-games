@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lottie/lottie.dart';
@@ -10,6 +10,9 @@ class WinOverlay extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onPlayAgain;
+  /// When true, hides Play Again and shows 'Waiting for host to restart...' instead.
+  /// Set when the local player is the non-host in a LAN or online session.
+  final bool isOnlineOrNetworkGuest;
 
   const WinOverlay({
     super.key,
@@ -17,6 +20,7 @@ class WinOverlay extends StatelessWidget {
     this.title = 'CONGRATULATIONS!',
     required this.subtitle,
     this.onPlayAgain,
+    this.isOnlineOrNetworkGuest = false,
   });
 
   @override
@@ -175,7 +179,7 @@ class WinOverlay extends StatelessWidget {
   }
 
   List<Widget> _buttons(BuildContext context) {
-    if (onPlayAgain != null) {
+    if (!isOnlineOrNetworkGuest && onPlayAgain != null) {
       return [
         GlassButton(
           label: const Text('PLAY AGAIN'),
@@ -194,7 +198,9 @@ class WinOverlay extends StatelessWidget {
     } else {
       return [
         Text(
-          "Waiting for host to restart...",
+          isOnlineOrNetworkGuest
+              ? 'Waiting for host to restart...'
+              : 'Waiting for host to restart...',
           textAlign: TextAlign.center,
           style: AppTheme.bodyMd.copyWith(
             color: AppTheme.textSecondary,

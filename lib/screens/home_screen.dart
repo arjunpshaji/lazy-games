@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lazy_games/screens/online_lobby_screen.dart';
 import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/utils/responsive_layout.dart';
 import 'package:lazy_games/widgets/app_snackbar.dart';
@@ -677,6 +679,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           _showNetworkLobby(context, game);
                         },
                       ),
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: AppTheme.neonViolet,
+                        icon: const Icon(Icons.public, size: 20),
+                        label: const Text('Online (Internet)'),
+                        hasShimmer: true,
+                        isPrimary: false,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _showOnlineLobby(context, game);
+                        },
+                      ),
                     ] else if (game.supportsMultiplayer) ...[
                       // Multiplayer only
                       GlassButton(
@@ -707,6 +721,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         onPressed: () {
                           Navigator.pop(sheetContext);
                           _showNetworkLobby(context, game);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      GlassButton(
+                        color: AppTheme.neonViolet,
+                        icon: const Icon(Icons.public, size: 20),
+                        label: const Text('Online (Internet)'),
+                        hasShimmer: true,
+                        isPrimary: false,
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _showOnlineLobby(context, game);
                         },
                       ),
                     ] else ...[
@@ -760,6 +786,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       elevation: 0,
       barrierColor: Colors.black.withOpacity(0.4),
       builder: (context) => NetworkLobbySheet(game: game),
+    );
+  }
+
+  void _showOnlineLobby(BuildContext context, GameInfo game) {
+    // Reset any existing online room first
+    Provider.of<SupabaseRoomManager>(context, listen: false).leaveRoom();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      enableDrag: false,
+      isDismissible: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: Colors.black.withOpacity(0.4),
+      builder: (context) => OnlineLobbySheet(
+        gameId: game.id,
+        gameTitle: game.title,
+        gameColor: game.color,
+        gameRoute: game.route,
+      ),
     );
   }
 }

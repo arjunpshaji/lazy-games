@@ -28,7 +28,6 @@ class AudioService {
   late Uint8List _drawSound;
   late Uint8List _flipSound;
   late Uint8List _slideSound;
-  late Uint8List _explodeSound;
   late Uint8List _successSound;
 
   /// Call once at app startup (e.g. in [main]) before using any sound method.
@@ -49,7 +48,6 @@ class AudioService {
     _slideSound = _beep(freq: 340, ms: 70, amp: 0.18);
     _drawSound = _chord([440, 494, 523], ms: 220, amp: 0.22);
     _successSound = _arpeggio([523, 659, 784], noteMs: 110, amp: 0.28);
-    _explodeSound = _noise(ms: 280, amp: 0.35);
 
     // Pre-configure asset players.
     await _winPlayer.setReleaseMode(ReleaseMode.stop);
