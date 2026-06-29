@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import 'glass_container.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/glass_container.dart';
 
 class AppSnackBar {
   static void showError(BuildContext context, String message) {

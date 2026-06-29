@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lazy_games/services/audio_service.dart';
 import 'glass_container.dart';
-import '../services/audio_service.dart';
 
 class GlassButton extends StatefulWidget {
   final Widget label;
@@ -19,7 +19,8 @@ class GlassButton extends StatefulWidget {
     this.onPressed,
     required this.color,
     this.isFullWidth = true,
-    this.borderRadius = 24.0, // rounded-xl (24px) for controls in the design system
+    this.borderRadius =
+        24.0, // rounded-xl (24px) for controls in the design system
     this.isPrimary = true,
     this.hasShimmer = false,
   });
@@ -28,7 +29,8 @@ class GlassButton extends StatefulWidget {
   State<GlassButton> createState() => _GlassButtonState();
 }
 
-class _GlassButtonState extends State<GlassButton> with SingleTickerProviderStateMixin {
+class _GlassButtonState extends State<GlassButton>
+    with SingleTickerProviderStateMixin {
   double _scale = 1.0;
   late AnimationController _shimmerController;
 
@@ -98,10 +100,7 @@ class _GlassButtonState extends State<GlassButton> with SingleTickerProviderStat
       children: [
         if (hasIcon) ...[
           IconTheme(
-            data: IconThemeData(
-              color: resolvedColor,
-              size: 20,
-            ),
+            data: IconThemeData(color: resolvedColor, size: 20),
             child: widget.icon!,
           ),
           const SizedBox(width: 8),
@@ -129,10 +128,7 @@ class _GlassButtonState extends State<GlassButton> with SingleTickerProviderStat
         elevation: GlassElevation.medium,
         primaryColor: widget.color,
         gradient: LinearGradient(
-          colors: [
-            widget.color,
-            widget.color.withOpacity(0.65),
-          ],
+          colors: [widget.color, widget.color.withOpacity(0.65)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -219,4 +215,3 @@ class _GlassButtonState extends State<GlassButton> with SingleTickerProviderStat
     );
   }
 }
-

@@ -9,7 +9,7 @@ class MemoryMatchProvider extends ChangeNotifier {
   int _player1Score = 0; // Host or Local Player 1
   int _player2Score = 0; // Client or Local Player 2
   bool _isPlayer1Turn = true; // Whose turn
-  
+
   List<int> _selectedIndices = [];
   bool _isWaiting = false; // Disable clicks during flip delay
 
@@ -17,6 +17,8 @@ class MemoryMatchProvider extends ChangeNotifier {
   String _myRole = 'host'; // 'host' or 'client'
   bool _isSolo = false;
   int _moves = 0;
+  // Cached matched pairs count — O(1) check instead of scanning 16 bools each build.
+  int _matchedPairCount = 0;
 
   List<int> get cards => _cards;
   List<bool> get flipped => _flipped;
@@ -48,6 +50,7 @@ class MemoryMatchProvider extends ChangeNotifier {
     _isWaiting = false;
     _flipped = List.generate(16, (_) => false);
     _matched = List.generate(16, (_) => false);
+    _matchedPairCount = 0;
 
     if (preShuffledCards != null) {
       _cards = List<int>.from(preShuffledCards);
@@ -84,6 +87,7 @@ class MemoryMatchProvider extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 600));
         _matched[first] = true;
         _matched[second] = true;
+        _matchedPairCount++;
         
         if (_isSolo) {
           _player1Score++;
@@ -133,6 +137,7 @@ class MemoryMatchProvider extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 600));
         _matched[first] = true;
         _matched[second] = true;
+        _matchedPairCount++;
         
         if (_isPlayer1Turn) {
           _player1Score++;
@@ -156,7 +161,6 @@ class MemoryMatchProvider extends ChangeNotifier {
     }
   }
 
-  bool get isGameOver {
-    return !_matched.contains(false);
-  }
+  // O(1) check — avoids scanning 16 bools on every build.
+  bool get isGameOver => _matchedPairCount >= _cards.length ~/ 2;
 }

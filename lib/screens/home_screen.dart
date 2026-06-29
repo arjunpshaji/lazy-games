@@ -2,14 +2,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/utils/responsive_layout.dart';
+import 'package:lazy_games/widgets/app_snackbar.dart';
+import 'package:lazy_games/widgets/game_visual.dart';
+import 'package:lazy_games/widgets/glass_button.dart';
+import 'package:lazy_games/widgets/glass_container.dart';
+import 'package:lazy_games/widgets/liquid_glass_background.dart';
 import 'package:provider/provider.dart';
-import '../services/network_manager.dart';
-import '../theme/app_theme.dart';
-import '../widgets/glass_container.dart';
-import '../widgets/liquid_glass_background.dart';
-import '../widgets/glass_button.dart';
-import '../widgets/app_snackbar.dart';
-import '../utils/responsive_layout.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class GameInfo {
@@ -50,6 +51,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showScrollIndicator = false;
   String _selectedCategory = 'All';
   final List<String> _categories = ['All', 'Logic', 'Classic', 'Strategy'];
+
+  // Cached card animations — built once in initState, not on every build tick.
+  late List<Animation<double>> _cardAnims;
+
+  // Cached text style — GoogleFonts.getFont() allocates on every call.
+  late TextStyle _caveatStyle;
 
   final List<GameInfo> _games = [
     GameInfo(
@@ -162,15 +169,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _staggerController.forward();
 
+    // Bounce controller starts stopped; only runs when scroll indicator is visible.
     _bounceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    );
 
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
 
+    // Cache GoogleFonts TextStyle once to avoid per-build allocation.
+    _caveatStyle = GoogleFonts.getFont(
+      'Caveat',
+      textStyle: AppTheme.bodyMd.copyWith(
+        fontSize: 22,
+        color: AppTheme.textSecondary,
+        letterSpacing: 0.5,
+      ),
+    );
+
+    // Build card animations once; rebuild when category changes.
+    _buildCardAnimations();
+
     _checkScrollable();
+  }
+
+  void _buildCardAnimations() {
+    final count = _games.length;
+    _cardAnims = List.generate(count, (i) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _staggerController,
+          curve: Interval((i / count) * 0.4, 1.0, curve: Curves.easeOutCubic),
+        ),
+      );
+    });
   }
 
   @override
@@ -189,6 +222,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _showScrollIndicator = show;
         });
+        // Start/stop bounce animation based on indicator visibility.
+        if (show) {
+          _bounceController.repeat(reverse: true);
+        } else {
+          _bounceController.stop();
+        }
       }
     }
   }
@@ -222,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          const LiquidGlassBackground(),
+          const RepaintBoundary(child: LiquidGlassBackground()),
           SafeArea(
             child: CustomScrollView(
               controller: _scrollController,
@@ -243,14 +282,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               'Select a game & play together',
-                              style: GoogleFonts.getFont(
-                                "Caveat",
-                                textStyle: AppTheme.bodyMd.copyWith(
-                                  fontSize: 22,
-                                  color: AppTheme.textSecondary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                              style: _caveatStyle,
                             ),
                           ],
                         ),
@@ -282,8 +314,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               onTap: () {
                                 setState(() {
                                   _selectedCategory = cat;
-                                  // Restart staggered animations
+                                  // Restart staggered animations and rebuild cached anims.
                                   _staggerController.reset();
+                                  _buildCardAnimations();
                                   _staggerController.forward();
                                 });
                                 _checkScrollable();
@@ -340,18 +373,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final game = filteredGames[index];
-
-                      // Stagger Animation
-                      final anim = Tween<double>(begin: 0.0, end: 1.0).animate(
-                        CurvedAnimation(
-                          parent: _staggerController,
-                          curve: Interval(
-                            (index / filteredGames.length) * 0.4,
-                            1.0,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ),
-                      );
+                      // Use pre-built cached animation — no Tween/CurvedAnimation allocation per frame.
+                      final anim = _cardAnims[index];
 
                       return AnimatedBuilder(
                         animation: anim,
@@ -366,82 +389,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         child: InkWell(
                           onTap: () => _showModeSelection(context, game),
-                          borderRadius: BorderRadius.circular(
-                            16,
-                          ), // rounded-lg (16px) for cards
+                          borderRadius: BorderRadius.circular(16),
                           child: GlassContainer(
-                            borderColor: game.color.withOpacity(0.3),
-                            borderRadius: 16, // rounded-lg (16px) for cards
-                            elevation: GlassElevation.low,
+                            borderColor: game.color.withOpacity(0.25),
+                            borderRadius: 16,
+                            elevation: GlassElevation.medium,
+                            primaryColor: game.color,
                             boxShadow: [
                               BoxShadow(
-                                color: game.color.withOpacity(0.08),
+                                color: game.color.withOpacity(0.06),
                                 blurRadius: 16,
                                 spreadRadius: 0,
                               ),
                             ],
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: game.color.withOpacity(0.12),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: game.color.withOpacity(0.3),
-                                          width: 1.5,
-                                        ),
+                                // Category badge on top-right
+                                Align(
+                                  alignment: Alignment.topRight,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: game.color.withOpacity(0.1),
+                                      border: Border.all(
+                                        color: game.color.withOpacity(0.2),
+                                        width: 0.8,
                                       ),
-                                      child: Icon(
-                                        game.icon,
+                                    ),
+                                    child: Text(
+                                      game.category.toUpperCase(),
+                                      style: TextStyle(
                                         color: game.color,
-                                        size: 22,
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        color: game.color.withOpacity(0.1),
-                                        border: Border.all(
-                                          color: game.color.withOpacity(0.2),
-                                          width: 0.8,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        game.category.toUpperCase(),
-                                        style: TextStyle(
-                                          color: game.color,
-                                          fontSize: 7.5,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                                 const Spacer(),
+                                // Glowing centered game icon / visual representation
+                                RepaintBoundary(
+                                  child: GameVisual(
+                                    gameId: game.id,
+                                    color: game.color,
+                                    size: 56,
+                                  ),
+                                ),
+                                const Spacer(),
+                                // Title
                                 Text(
                                   game.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
                                   style: AppTheme.bodyLg.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
+                                // Description
                                 Text(
                                   game.description,
+                                  textAlign: TextAlign.center,
                                   style: AppTheme.bodyMd.copyWith(
                                     fontSize: 11,
                                     color: AppTheme.textSecondary,
@@ -757,6 +776,9 @@ class NetworkLobbySheet extends StatefulWidget {
 class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
   late final TextEditingController _ipController;
   bool _showJoinInput = false;
+  // Guard to ensure Navigator.pop is only called once even if provider
+  // notifies multiple times while isConnected == true.
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -774,14 +796,17 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
   Widget build(BuildContext context) {
     final netManager = Provider.of<NetworkManager>(context);
 
-    if (netManager.isConnected) {
+    if (netManager.isConnected && !_navigated) {
+      _navigated = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pop(context);
-        Navigator.pushNamed(
-          context,
-          widget.game.route,
-          arguments: {'network': true},
-        );
+        if (mounted) {
+          Navigator.pop(context);
+          Navigator.pushNamed(
+            context,
+            widget.game.route,
+            arguments: {'network': true},
+          );
+        }
       });
     }
 
@@ -1031,10 +1056,7 @@ class _NetworkLobbySheetState extends State<NetworkLobbySheet> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      keyboardType: TextInputType.values.firstWhere(
-                        (_) => true,
-                        orElse: () => TextInputType.number,
-                      ),
+                      keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9\.\:]')),
                       ],

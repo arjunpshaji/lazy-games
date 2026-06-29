@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
 import 'package:provider/provider.dart';
-import '../services/network_manager.dart';
-import '../services/audio_service.dart';
-import '../theme/app_theme.dart';
 import 'liquid_glass_background.dart';
 import 'glass_button.dart';
 import 'glass_container.dart';
@@ -500,7 +500,11 @@ class _GameShellState extends State<GameShell> {
             isVisible: widget.isWinner,
             title: widget.winTitle ?? 'CONGRATULATIONS!',
             subtitle: widget.winSubtitle ?? 'YOU WON!',
-            onPlayAgain: widget.onReset,
+            onPlayAgain:
+                (_netManager.isConnected &&
+                    _netManager.role == NetworkRole.client)
+                ? null
+                : (widget.onReset != null ? _handleResetClick : null),
           ),
         ],
       ),

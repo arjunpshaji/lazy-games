@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/checkers_provider.dart';
-import '../../services/network_manager.dart';
-import '../../services/audio_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/providers/checkers_provider.dart';
 
 class CheckersScreen extends StatefulWidget {
   const CheckersScreen({super.key});
@@ -23,8 +23,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<CheckersProvider>(context, listen: false);
-      
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
@@ -53,8 +54,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
     if (provider.winner != 0) {
       String winnerText;
       if (provider.isNetworkGame) {
-        final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                     (provider.myRole == 'client' && provider.winner == 2);
+        final iWon =
+            (provider.myRole == 'host' && provider.winner == 1) ||
+            (provider.myRole == 'client' && provider.winner == 2);
         winnerText = iWon ? "YOU WIN!" : "OPPONENT WINS!";
       } else {
         winnerText = provider.winner == 1 ? "PINK WINS!" : "CYAN WINS!";
@@ -62,7 +64,14 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget = Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
-        child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+        child: Text(
+          winnerText,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       String turnText;
@@ -70,7 +79,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
       if (provider.isNetworkGame) {
         turnText = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
       } else {
-        turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (PINK)" : "PLAYER 2'S TURN (CYAN)";
+        turnText = provider.isPlayer1Turn
+            ? "PLAYER 1'S TURN (PINK)"
+            : "PLAYER 2'S TURN (CYAN)";
       }
 
       statusWidget = Container(
@@ -78,12 +89,16 @@ class _CheckersScreenState extends State<CheckersScreen> {
         decoration: AppTheme.neonBorderDecoration(
           color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
         ),
-        child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        child: Text(
+          turnText,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       );
     }
 
-    final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                 (provider.myRole == 'client' && provider.winner == 2);
+    final iWon =
+        (provider.myRole == 'host' && provider.winner == 1) ||
+        (provider.myRole == 'client' && provider.winner == 2);
     final isWinner = provider.winner != 0 && (!provider.isNetworkGame || iWon);
     final winSubtitle = provider.isNetworkGame
         ? 'YOU WON!'
@@ -91,12 +106,16 @@ class _CheckersScreenState extends State<CheckersScreen> {
 
     return GameShell(
       title: 'Checkers',
-      rules: 'Select your pieces and move diagonally forward on dark squares. Capture opponent pieces by jumping over them. Reach the end to get crowned King!',
+      rules:
+          'Select your pieces and move diagonally forward on dark squares. Capture opponent pieces by jumping over them. Reach the end to get crowned King!',
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
       isInProgress: provider.winner == 0,
-      onReset: provider.isNetworkGame && provider.myRole != 'host' && provider.winner != 0
+      onReset:
+          provider.isNetworkGame &&
+              provider.myRole != 'host' &&
+              provider.winner != 0
           ? null
           : () {
               if (provider.isNetworkGame) {
@@ -113,7 +132,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
             Text(
               "Your Color: ${provider.myRole == 'host' ? 'Pink' : 'Cyan'}",
               style: TextStyle(
-                color: provider.myRole == 'host' ? AppTheme.neonPink : AppTheme.neonCyan,
+                color: provider.myRole == 'host'
+                    ? AppTheme.neonPink
+                    : AppTheme.neonCyan,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -145,7 +166,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
                   final isSelected = provider.selectedPiece == index;
                   final isValidMove = provider.validMoves.contains(index);
 
-                  Color squareColor = isDarkSquare ? Colors.black45 : Colors.white.withOpacity(0.04);
+                  Color squareColor = isDarkSquare
+                      ? Colors.black45
+                      : Colors.white.withOpacity(0.04);
                   if (isValidMove) {
                     squareColor = AppTheme.neonGreen.withOpacity(0.15);
                   }
@@ -179,14 +202,12 @@ class _CheckersScreenState extends State<CheckersScreen> {
                           color: isSelected
                               ? AppTheme.neonGreen
                               : isValidMove
-                                  ? AppTheme.neonGreen.withOpacity(0.5)
-                                  : Colors.transparent,
+                              ? AppTheme.neonGreen.withOpacity(0.5)
+                              : Colors.transparent,
                           width: (isSelected || isValidMove) ? 1.5 : 0,
                         ),
                       ),
-                      child: Center(
-                        child: _buildPiece(piece),
-                      ),
+                      child: Center(child: _buildPiece(piece)),
                     ),
                   );
                 },
@@ -213,18 +234,11 @@ class _CheckersScreenState extends State<CheckersScreen> {
         shape: BoxShape.circle,
         border: Border.all(color: pieceColor, width: 2),
         boxShadow: [
-          BoxShadow(
-            color: pieceColor.withOpacity(0.4),
-            blurRadius: 8,
-          ),
+          BoxShadow(color: pieceColor.withOpacity(0.4), blurRadius: 8),
         ],
       ),
       child: isKing
-          ? const Icon(
-              Icons.star,
-              color: Colors.amber,
-              size: 14,
-            )
+          ? const Icon(Icons.star, color: Colors.amber, size: 14)
           : null,
     );
   }

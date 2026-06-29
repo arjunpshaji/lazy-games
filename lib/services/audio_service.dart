@@ -24,7 +24,6 @@ class AudioService {
   final AudioPlayer _failPlayer = AudioPlayer();
 
   // Pre-generated WAV byte buffers (procedural sounds only).
-  late Uint8List _tapSound;
   late Uint8List _moveSound;
   late Uint8List _drawSound;
   late Uint8List _flipSound;
@@ -45,7 +44,6 @@ class AudioService {
     }
 
     // Pre-generate procedural sounds.
-    _tapSound = _beep(freq: 900, ms: 60, amp: 0.28);
     _moveSound = _beep(freq: 460, ms: 90, amp: 0.22);
     _flipSound = _beep(freq: 620, ms: 100, amp: 0.20);
     _slideSound = _beep(freq: 340, ms: 70, amp: 0.18);

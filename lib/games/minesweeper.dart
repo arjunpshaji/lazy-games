@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lazy_games/providers/minesweeper_provider.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
-import '../../providers/minesweeper_provider.dart';
-import '../../services/network_manager.dart';
-import '../../services/audio_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/lottie_loader.dart';
 
 class MinesweeperScreen extends StatefulWidget {
   const MinesweeperScreen({super.key});
@@ -170,36 +170,36 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
                   AspectRatio(
                     aspectRatio: 1,
                     child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 10,
-                            crossAxisSpacing: 1.5,
-                            mainAxisSpacing: 1.5,
-                          ),
-                      itemCount: 100,
-                      itemBuilder: (context, index) {
-                        final cell = provider.grid[index];
-                        return GestureDetector(
-                          onTap: () => _onCellTap(index),
-                          onLongPress: () => _onCellLongPress(index),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            decoration: _getCellDecoration(cell),
-                            alignment: Alignment.center,
-                            child: _buildCellContent(cell),
-                          ),
-                        );
-                      },
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white10),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 10,
+                              crossAxisSpacing: 1.5,
+                              mainAxisSpacing: 1.5,
+                            ),
+                        itemCount: 100,
+                        itemBuilder: (context, index) {
+                          final cell = provider.grid[index];
+                          return GestureDetector(
+                            onTap: () => _onCellTap(index),
+                            onLongPress: () => _onCellLongPress(index),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: _getCellDecoration(cell),
+                              alignment: Alignment.center,
+                              child: _buildCellContent(cell),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 20),
 
                 // Flag Mode Toggle for mobile convenience

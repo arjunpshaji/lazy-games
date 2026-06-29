@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../providers/connect_four_provider.dart';
-import '../../services/network_manager.dart';
-import '../../services/audio_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
+import 'package:lazy_games/providers/connect_four_provider.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
 
 class ConnectFourScreen extends StatefulWidget {
   const ConnectFourScreen({super.key});

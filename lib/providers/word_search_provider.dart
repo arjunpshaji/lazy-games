@@ -1,18 +1,30 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../utils/word_search_generator.dart';
+import 'package:lazy_games/utils/word_search_generator.dart';
 
 class WordSearchProvider extends ChangeNotifier {
   final List<String> _dictionary = [
-    'FLUTTER', 'DART', 'PUZZLE', 'BOARD', 'CHESS',
-    'SUDOKU', 'ARCADE', 'MINDFUL', 'GAMING', 'LOGIC',
-    'SLIDE', 'MEMORY', 'SEARCH', 'MATRIX', 'MATCH'
+    'FLUTTER',
+    'DART',
+    'PUZZLE',
+    'BOARD',
+    'CHESS',
+    'SUDOKU',
+    'ARCADE',
+    'MINDFUL',
+    'GAMING',
+    'LOGIC',
+    'SLIDE',
+    'MEMORY',
+    'SEARCH',
+    'MATRIX',
+    'MATCH',
   ];
 
   List<String> _grid = List.generate(100, (_) => '');
   List<String> _words = [];
   Map<String, List<int>> _wordLocations = {};
-  
+
   final List<String> _foundWords = [];
   final Map<int, Color> _highlightedCells = {};
   bool _isLoading = false;
@@ -43,7 +55,11 @@ class WordSearchProvider extends ChangeNotifier {
     }
   }
 
-  void setupNetworkBoard(List<String> gridData, List<String> wordsData, Map<String, List<int>> locations) {
+  void setupNetworkBoard(
+    List<String> gridData,
+    List<String> wordsData,
+    Map<String, List<int>> locations,
+  ) {
     _grid = List<String>.from(gridData);
     _words = List<String>.from(wordsData);
     _wordLocations = Map<String, List<int>>.from(locations);
@@ -57,7 +73,7 @@ class WordSearchProvider extends ChangeNotifier {
   String? checkSelection(List<int> selected) {
     for (var word in _words) {
       if (_foundWords.contains(word)) continue;
-      
+
       final locations = _wordLocations[word];
       if (locations == null) continue;
 
@@ -71,7 +87,7 @@ class WordSearchProvider extends ChangeNotifier {
 
   bool _matchIndices(List<int> a, List<int> b) {
     if (a.length != b.length) return false;
-    
+
     // Check forward match
     bool forward = true;
     for (int i = 0; i < a.length; i++) {
@@ -95,7 +111,7 @@ class WordSearchProvider extends ChangeNotifier {
 
   void markWordFound(String word, Color highlightColor) {
     if (_foundWords.contains(word)) return;
-    
+
     _foundWords.add(word);
     final locations = _wordLocations[word];
     if (locations != null) {

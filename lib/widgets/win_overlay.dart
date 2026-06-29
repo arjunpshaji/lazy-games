@@ -1,7 +1,7 @@
 ﻿import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lottie/lottie.dart';
-import '../theme/app_theme.dart';
 import 'glass_button.dart';
 import 'glass_container.dart';
 
@@ -154,10 +154,7 @@ class WinOverlay extends StatelessWidget {
           letterSpacing: 1.5,
           color: AppTheme.neonPink,
           shadows: [
-            Shadow(
-              color: AppTheme.neonPink.withOpacity(0.65),
-              blurRadius: 16,
-            ),
+            Shadow(color: AppTheme.neonPink.withOpacity(0.65), blurRadius: 16),
           ],
         ),
       ),
@@ -170,10 +167,7 @@ class WinOverlay extends StatelessWidget {
           fontWeight: FontWeight.bold,
           color: AppTheme.neonCyan,
           shadows: [
-            Shadow(
-              color: AppTheme.neonCyan.withOpacity(0.5),
-              blurRadius: 10,
-            ),
+            Shadow(color: AppTheme.neonCyan.withOpacity(0.5), blurRadius: 10),
           ],
         ),
       ),

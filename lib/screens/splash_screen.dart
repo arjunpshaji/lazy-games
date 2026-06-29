@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/liquid_glass_background.dart';
 import 'package:lottie/lottie.dart';
-import '../theme/app_theme.dart';
-import '../widgets/liquid_glass_background.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

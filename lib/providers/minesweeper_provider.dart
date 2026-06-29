@@ -97,7 +97,9 @@ class MinesweeperProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get firstTapDone => _firstTapDone;
 
-  int get flaggedCount => _grid.where((c) => c.isFlagged).length;
+  // Cached counter — O(1) read instead of scanning 100 cells per build.
+  int _flaggedCount = 0;
+  int get flaggedCount => _flaggedCount;
 
   void setupGame() {
     _grid = List.generate(rows * cols, (_) => MinesweeperCell());
@@ -105,6 +107,7 @@ class MinesweeperProvider extends ChangeNotifier {
     _isWon = false;
     _firstTapDone = false;
     _isLoading = false;
+    _flaggedCount = 0;
     notifyListeners();
   }
 
@@ -145,14 +148,18 @@ class MinesweeperProvider extends ChangeNotifier {
   // Set grid manually (sync from Host to Client)
   void setupNetworkBoard(List<int> flatGrid) {
     _grid.clear();
+    int flagCount = 0;
     for (int i = 0; i < flatGrid.length; i += 4) {
+      final isFlagged = flatGrid[i + 3] == 1;
+      if (isFlagged) flagCount++;
       _grid.add(MinesweeperCell(
         isMine: flatGrid[i] == 1,
         neighborMines: flatGrid[i + 1],
         isRevealed: flatGrid[i + 2] == 1,
-        isFlagged: flatGrid[i + 3] == 1,
+        isFlagged: isFlagged,
       ));
     }
+    _flaggedCount = flagCount;
     _firstTapDone = true;
     _isGameOver = false;
     _isWon = false;
@@ -208,6 +215,7 @@ class MinesweeperProvider extends ChangeNotifier {
   void toggleFlag(int index) {
     if (_isGameOver || _isWon || _grid[index].isRevealed) return;
     _grid[index].isFlagged = !_grid[index].isFlagged;
+    _flaggedCount += _grid[index].isFlagged ? 1 : -1;
     _checkWin();
     notifyListeners();
   }

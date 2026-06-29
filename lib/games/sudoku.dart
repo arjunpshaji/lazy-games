@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lazy_games/providers/sudoku_provider.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/widgets/glass_container.dart';
+import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
-import '../../providers/sudoku_provider.dart';
-import '../../services/network_manager.dart';
-import '../../services/audio_service.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/glass_container.dart';
-import '../../widgets/lottie_loader.dart';
 
 class SudokuScreen extends StatefulWidget {
   const SudokuScreen({super.key});
