@@ -1,4 +1,4 @@
-package com.example.lazy_games
+package com.devzilla.lazygames
 
 import io.flutter.embedding.android.FlutterActivity
 
