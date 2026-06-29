@@ -311,6 +311,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       _provider.removeListener(_onProviderChanged);
     } catch (_) {}
     _roomManager?.removeMessageListener(_handleOnlineMessage);
+    _netManager.onMessageReceived = null;
     super.dispose();
   }
 

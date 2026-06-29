@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:lazy_games/main.dart'; // To access LazyGamesApp.routeObserver
 
 class LiquidGlassBackground extends StatefulWidget {
   const LiquidGlassBackground({super.key});
@@ -9,7 +10,7 @@ class LiquidGlassBackground extends StatefulWidget {
 }
 
 class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware, WidgetsBindingObserver {
   late AnimationController _controller;
 
   // Cached shaders to prevent allocating them on every paint tick
@@ -18,9 +19,13 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
   Shader? _shaderBlob3;
   Shader? _shaderBlob4;
 
+  bool _isObserved = false;
+  bool _isCovered = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
@@ -48,9 +53,56 @@ class _LiquidGlassBackgroundState extends State<LiquidGlassBackground>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isObserved) {
+      final route = ModalRoute.of(context);
+      if (route is PageRoute) {
+        LazyGamesApp.routeObserver.subscribe(this, route);
+        _isObserved = true;
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isObserved) {
+      LazyGamesApp.routeObserver.unsubscribe(this);
+    }
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (!_isCovered && !_controller.isAnimating) {
+        _controller.repeat();
+      }
+    } else {
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+    }
+  }
+
+  @override
+  void didPushNext() {
+    // This route is now covered by a new route pushed on top of it.
+    _isCovered = true;
+    if (_controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // The route on top was popped, and we are visible again.
+    _isCovered = false;
+    if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override

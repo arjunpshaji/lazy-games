@@ -78,6 +78,9 @@ void main() async {
 class LazyGamesApp extends StatelessWidget {
   const LazyGamesApp({super.key});
 
+  static final RouteObserver<ModalRoute<void>> routeObserver =
+      RouteObserver<ModalRoute<void>>();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -85,6 +88,7 @@ class LazyGamesApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       initialRoute: '/',
+      navigatorObservers: [routeObserver],
       routes: {
         '/': (context) => const SplashScreen(),
         '/home': (context) => const HomeScreen(),

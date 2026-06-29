@@ -22,13 +22,16 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
   int _currentIndex = -1;
   List<int> _selectedPath = [];
   final GlobalKey _gridKey = GlobalKey();
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<WordSearchProvider>(context, listen: false);
+      _netInitialized = true;
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -73,11 +76,18 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
 
   void _generateAndSyncNetworkGame() async {
     await _provider.initBoard();
+    if (!mounted) return;
     _netManager.sendMessage('ws_setup', {
       'grid': _provider.grid,
       'words': _provider.words,
       'locations': _provider.wordLocations,
     });
+  }
+
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   void _onPanStart(DragStartDetails details) {

@@ -19,13 +19,16 @@ class SudokuScreen extends StatefulWidget {
 class _SudokuScreenState extends State<SudokuScreen> {
   late NetworkManager _netManager;
   late SudokuProvider _provider;
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<SudokuProvider>(context, listen: false);
+      _netInitialized = true;
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -61,10 +64,17 @@ class _SudokuScreenState extends State<SudokuScreen> {
 
   Future<void> _generateAndSyncNetworkGame() async {
     await _provider.generateNewGame(difficulty: 'Easy');
+    if (!mounted) return;
     _netManager.sendMessage('sudoku_setup', {
       'puzzle': _provider.puzzle,
       'solution': _provider.solution,
     });
+  }
+
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   @override

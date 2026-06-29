@@ -19,13 +19,16 @@ class _CheckersScreenState extends State<CheckersScreen> {
   late CheckersProvider _provider;
   SupabaseRoomManager? _roomManager;
   bool _isOnline = false;
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<CheckersProvider>(context, listen: false);
+      _netInitialized = true;
 
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -74,6 +77,7 @@ class _CheckersScreenState extends State<CheckersScreen> {
   @override
   void dispose() {
     _roomManager?.removeMessageListener(_handleOnlineMessage);
+    if (_netInitialized) _netManager.onMessageReceived = null;
     super.dispose();
   }
 

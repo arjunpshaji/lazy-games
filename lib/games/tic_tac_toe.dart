@@ -77,6 +77,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   @override
   void dispose() {
     _roomManager?.removeMessageListener(_handleOnlineMessage);
+    _netManager.onMessageReceived = null;
     super.dispose();
   }
 

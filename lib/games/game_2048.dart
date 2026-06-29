@@ -17,13 +17,16 @@ class Game2048Screen extends StatefulWidget {
 class _Game2048ScreenState extends State<Game2048Screen> {
   late NetworkManager _netManager;
   late Game2048Provider _provider;
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<Game2048Provider>(context, listen: false);
+      _netInitialized = true;
 
       _provider.setupGame();
 
@@ -42,6 +45,12 @@ class _Game2048ScreenState extends State<Game2048Screen> {
         };
       }
     });
+  }
+
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   void _onSwipe(String direction) {

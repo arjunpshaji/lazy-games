@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -32,6 +33,10 @@ class AdMobService {
 
   bool _initialized = false;
   RewardedAd? _rewardedAd;
+  
+  // Future to track the active load progress
+  Future<void>? _loadFuture;
+  bool _isLoading = false;
 
   // ── Initialization ────────────────────────────────────────────────────────
   Future<void> initialize() async {
@@ -40,6 +45,8 @@ class AdMobService {
       await MobileAds.instance.initialize();
       _initialized = true;
       debugPrint('[AdMobService] Initialized');
+      // Pre-load the first ad immediately on startup
+      loadRewardedAd();
     } catch (e) {
       debugPrint('[AdMobService] Init error: $e');
     }
@@ -48,6 +55,13 @@ class AdMobService {
   // ── Ad Loading ────────────────────────────────────────────────────────────
   Future<void> loadRewardedAd() async {
     if (kIsWeb || !_initialized) return;
+    if (_rewardedAd != null) return; // Ad already loaded
+    if (_isLoading) return; // Load already in progress
+
+    _isLoading = true;
+    final completer = Completer<void>();
+    _loadFuture = completer.future;
+
     try {
       await RewardedAd.load(
         adUnitId: _rewardedAdUnitId,
@@ -55,16 +69,29 @@ class AdMobService {
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
             _rewardedAd = ad;
+            _isLoading = false;
+            _loadFuture = null;
             debugPrint('[AdMobService] Rewarded ad loaded');
+            completer.complete();
           },
           onAdFailedToLoad: (error) {
             _rewardedAd = null;
+            _isLoading = false;
+            _loadFuture = null;
             debugPrint('[AdMobService] Load failed: ${error.message}');
+            completer.complete();
+            // Retry loading after a delay (e.g. 5 seconds) to avoid spamming requests
+            Future.delayed(const Duration(seconds: 5), () {
+              loadRewardedAd();
+            });
           },
         ),
       );
     } catch (e) {
+      _isLoading = false;
+      _loadFuture = null;
       debugPrint('[AdMobService] loadRewardedAd error: $e');
+      completer.complete();
     }
   }
 
@@ -80,32 +107,56 @@ class AdMobService {
       onFailed?.call();
       return;
     }
+
+    // If no ad is loaded, wait for any active load to complete or start a new load
     if (_rewardedAd == null) {
-      debugPrint('[AdMobService] No ad loaded — attempting reload');
-      // Try a one-shot reload before failing
-      await loadRewardedAd();
-      if (_rewardedAd == null) {
-        onFailed?.call();
-        return;
+      debugPrint('[AdMobService] No ad loaded — waiting for load completion');
+      if (_loadFuture != null) {
+        await _loadFuture;
+      } else {
+        await loadRewardedAd();
+        if (_loadFuture != null) {
+          await _loadFuture;
+        }
       }
     }
 
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+    // Check again if we now have a loaded ad
+    if (_rewardedAd == null) {
+      debugPrint('[AdMobService] Ad still not available after waiting');
+      onFailed?.call();
+      return;
+    }
+
+    final adToShow = _rewardedAd!;
+    _rewardedAd = null; // Clear immediately so we don't double show
+
+    adToShow.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        debugPrint('[AdMobService] Ad dismissed — preloading next ad');
+        loadRewardedAd();
+      },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        _rewardedAd = null;
-        debugPrint('[AdMobService] Show failed: ${error.message}');
+        debugPrint('[AdMobService] Show failed: ${error.message} — preloading next ad');
         onFailed?.call();
+        loadRewardedAd();
       },
     );
 
-    await _rewardedAd!.show(
-      onUserEarnedReward: (_, reward) {
-        _rewardedAd = null;
-        debugPrint('[AdMobService] Reward earned: ${reward.amount} ${reward.type}');
-        onRewarded();
-      },
-    );
+    try {
+      await adToShow.show(
+        onUserEarnedReward: (_, reward) {
+          debugPrint('[AdMobService] Reward earned: ${reward.amount} ${reward.type}');
+          onRewarded();
+        },
+      );
+    } catch (e) {
+      debugPrint('[AdMobService] Error showing ad: $e');
+      adToShow.dispose();
+      onFailed?.call();
+      loadRewardedAd();
+    }
   }
 }

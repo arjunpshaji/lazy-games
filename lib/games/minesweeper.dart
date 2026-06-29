@@ -18,13 +18,16 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
   late NetworkManager _netManager;
   late MinesweeperProvider _provider;
   bool _tapToFlag = false; // Mobile-friendly toggle
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<MinesweeperProvider>(context, listen: false);
+      _netInitialized = true;
 
       _provider.setupGame();
 
@@ -74,6 +77,7 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
         if (wasFirstTap) {
           // Wait briefly for isolate board generation to complete, then sync it
           Future.delayed(const Duration(milliseconds: 100), () {
+            if (!mounted) return;
             _netManager.sendMessage('ms_setup', {
               'grid': _provider.getFlatGrid(),
             });
@@ -83,6 +87,12 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
         }
       }
     }
+  }
+
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   void _onCellLongPress(int index) {

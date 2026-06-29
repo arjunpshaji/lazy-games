@@ -20,6 +20,19 @@ class MemoryMatchProvider extends ChangeNotifier {
   // Cached matched pairs count — O(1) check instead of scanning 16 bools each build.
   int _matchedPairCount = 0;
 
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  void _safeNotify() {
+    if (_isDisposed) return;
+    notifyListeners();
+  }
+
   List<int> get cards => _cards;
   List<bool> get flipped => _flipped;
   List<bool> get matched => _matched;
@@ -99,19 +112,19 @@ class MemoryMatchProvider extends ChangeNotifier {
         
         _selectedIndices.clear();
         _isWaiting = false;
-        notifyListeners();
+        _safeNotify();
       } else {
         // NO MATCH!
         await Future.delayed(const Duration(milliseconds: 1000));
         _flipped[first] = false;
         _flipped[second] = false;
-        
+
         if (!_isSolo) {
           _isPlayer1Turn = !_isPlayer1Turn;
         }
         _selectedIndices.clear();
         _isWaiting = false;
-        notifyListeners();
+        _safeNotify();
       }
     }
     
@@ -147,16 +160,16 @@ class MemoryMatchProvider extends ChangeNotifier {
         
         _selectedIndices.clear();
         _isWaiting = false;
-        notifyListeners();
+        _safeNotify();
       } else {
         await Future.delayed(const Duration(milliseconds: 1000));
         _flipped[first] = false;
         _flipped[second] = false;
-        
+
         _isPlayer1Turn = !_isPlayer1Turn;
         _selectedIndices.clear();
         _isWaiting = false;
-        notifyListeners();
+        _safeNotify();
       }
     }
   }
