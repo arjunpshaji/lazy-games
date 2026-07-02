@@ -40,8 +40,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
 
       if (_isOnline) {
         _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
-        final onlineRole =
-            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        final onlineRole = _roomManager!.role == OnlineRole.host
+            ? 'host'
+            : 'client';
         _provider.setupGame(isNetwork: true, role: onlineRole);
         _roomManager!.addMessageListener(_handleOnlineMessage);
       } else if (isNetwork) {
@@ -66,8 +67,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
     if (packet['type'] == 'game_state_update') {
       final data = packet['data'] as Map<String, dynamic>;
       if (data['type'] == 'c4_online_reset') {
-        final onlineRole =
-            _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+        final onlineRole = _roomManager?.role == OnlineRole.host
+            ? 'host'
+            : 'client';
         _provider.setupGame(isNetwork: true, role: onlineRole);
       } else if (data.containsKey('board')) {
         final board = (data['board'] as List).cast<int>();
@@ -159,8 +161,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           ? null
           : () {
               if (_isOnline) {
-                final onlineRole =
-                    _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+                final onlineRole = _roomManager?.role == OnlineRole.host
+                    ? 'host'
+                    : 'client';
                 _provider.setupGame(isNetwork: true, role: onlineRole);
                 _roomManager?.sendGameState({'type': 'c4_online_reset'});
               } else if (provider.isNetworkGame) {
@@ -210,7 +213,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue[900]?.withOpacity(0.85),
+              color: Colors.blue[900]?.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(16),
               // border: Border.all(color: Colors.blue[600]!, width: 3),
               border: provider.isPlayer1Turn
@@ -218,7 +221,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                   : Border.all(color: AppTheme.neonViolet, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue[900]!.withOpacity(0.5),
+                  color: Colors.blue[900]!.withValues(alpha: 0.5),
                   blurRadius: 15,
                   spreadRadius: 2,
                 ),
@@ -252,13 +255,17 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                       color: Colors.black26, // cutout slot
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isWinning ? AppTheme.neonGreen : Colors.blue[800]!,
+                        color: isWinning
+                            ? AppTheme.neonGreen
+                            : Colors.blue[800]!,
                         width: isWinning ? 3.0 : 1.5,
                       ),
                       boxShadow: isWinning
                           ? [
                               BoxShadow(
-                                color: AppTheme.neonGreen.withOpacity(0.6),
+                                color: AppTheme.neonGreen.withValues(
+                                  alpha: 0.6,
+                                ),
                                 blurRadius: 10,
                               ),
                             ]
@@ -276,7 +283,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                           boxShadow: cell != 0
                               ? [
                                   BoxShadow(
-                                    color: discColor.withOpacity(0.5),
+                                    color: discColor.withValues(alpha: 0.5),
                                     blurRadius: 6,
                                   ),
                                 ]
@@ -316,7 +323,11 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
     _wasMyTurn = isMyTurn;
   }
 
-  void _dropDisc(int col, ConnectFourProvider provider, NetworkManager netManager) {
+  void _dropDisc(
+    int col,
+    ConnectFourProvider provider,
+    NetworkManager netManager,
+  ) {
     if (provider.isMyTurn && provider.winner == 0) {
       final success = provider.dropDisc(col);
       if (success) {
@@ -399,15 +410,15 @@ class _PulsingTurnIndicatorState extends State<_PulsingTurnIndicator>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
             decoration: BoxDecoration(
-              color: widget.color.withOpacity(0.06 + 0.08 * glow),
+              color: widget.color.withValues(alpha: 0.06 + 0.08 * glow),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: widget.color.withOpacity(0.3 + 0.7 * glow),
+                color: widget.color.withValues(alpha: 0.3 + 0.7 * glow),
                 width: 1.5 + 1.0 * glow,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: widget.color.withOpacity(0.1 + 0.4 * glow),
+                  color: widget.color.withValues(alpha: 0.1 + 0.4 * glow),
                   blurRadius: 8 + 12 * glow,
                   spreadRadius: 0.5 + 1.5 * glow,
                 ),
