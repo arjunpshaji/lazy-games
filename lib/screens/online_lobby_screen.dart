@@ -380,42 +380,27 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
           children: [
             Expanded(
               child: InkWell(
-                onTap: kIsWeb ? null : _createRoom,
+                onTap: _createRoom,
                 borderRadius: BorderRadius.circular(16),
                 child: GlassContainer(
                   height: 100,
-                  borderColor: kIsWeb
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : AppTheme.neonCyan.withValues(alpha: 0.4),
-                  fillColor: kIsWeb
-                      ? Colors.transparent
-                      : AppTheme.neonCyan.withValues(alpha: 0.08),
-                  child: Column(
+                  borderColor: AppTheme.neonCyan.withValues(alpha: 0.4),
+                  fillColor: AppTheme.neonCyan.withValues(alpha: 0.08),
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.add_circle_outline,
-                        color: kIsWeb ? Colors.grey : AppTheme.neonCyan,
+                        color: AppTheme.neonCyan,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         'CREATE ROOM',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: kIsWeb ? Colors.grey : null,
                         ),
                       ),
-                      if (kIsWeb) ...[
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Mobile Only',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

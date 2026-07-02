@@ -198,14 +198,12 @@ class SupabaseRoomManager extends ChangeNotifier {
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'game_rooms',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: roomId,
-          ),
           callback: (payload) {
-            debugPrint('[SupabaseRoomManager] Postgres update payload received: ${payload.newRecord}');
-            _onRoomUpdate(payload);
+            final row = payload.newRecord;
+            if (row['id'] == roomId) {
+              debugPrint('[SupabaseRoomManager] Postgres update payload received: ${payload.newRecord}');
+              _onRoomUpdate(payload);
+            }
           },
         );
         
