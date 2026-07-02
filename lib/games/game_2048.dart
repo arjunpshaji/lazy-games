@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lazy_games/providers/game_2048_provider.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:provider/provider.dart';
-import '../../providers/game_2048_provider.dart';
-import '../../services/network_manager.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/animated_neon_container.dart';
 
 class Game2048Screen extends StatefulWidget {
   const Game2048Screen({super.key});
@@ -17,17 +17,21 @@ class Game2048Screen extends StatefulWidget {
 class _Game2048ScreenState extends State<Game2048Screen> {
   late NetworkManager _netManager;
   late Game2048Provider _provider;
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<Game2048Provider>(context, listen: false);
-      
+      _netInitialized = true;
+
       _provider.setupGame();
 
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
 
       if (isNetwork) {
@@ -43,8 +47,15 @@ class _Game2048ScreenState extends State<Game2048Screen> {
     });
   }
 
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
+  }
+
   void _onSwipe(String direction) {
     _provider.handleSwipe(direction);
+    AudioService.instance.gameMove();
     final netManager = Provider.of<NetworkManager>(context, listen: false);
     if (netManager.isConnected) {
       netManager.sendMessage('2048_score', {'score': _provider.score});
@@ -61,10 +72,13 @@ class _Game2048ScreenState extends State<Game2048Screen> {
       autofocus: true,
       onKeyEvent: (FocusNode node, KeyEvent event) {
         if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) _onSwipe('left');
-          if (event.logicalKey == LogicalKeyboardKey.arrowRight) _onSwipe('right');
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft)
+            _onSwipe('left');
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight)
+            _onSwipe('right');
           if (event.logicalKey == LogicalKeyboardKey.arrowUp) _onSwipe('up');
-          if (event.logicalKey == LogicalKeyboardKey.arrowDown) _onSwipe('down');
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown)
+            _onSwipe('down');
         }
         return KeyEventResult.handled;
       },
@@ -82,8 +96,11 @@ class _Game2048ScreenState extends State<Game2048Screen> {
         },
         child: GameShell(
           title: '2048',
-          rules: 'Swipe up, down, left, or right (or use Keyboard Arrow Keys) to slide tiles. Matching tiles merge and double. Reach 2048 to win!',
+          rules:
+              'Swipe up, down, left, or right (or use Keyboard Arrow Keys) to slide tiles. Matching tiles merge and double. Reach 2048 to win!',
           statusWidget: _buildScoreHeader(provider, netManager.isConnected),
+          isWinner: provider.isWon,
+          winSubtitle: 'YOU REACHED 2048!',
           onReset: () {
             provider.setupGame();
             if (netManager.isConnected) {
@@ -97,15 +114,41 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                 AnimatedNeonContainer(
                   color: AppTheme.neonPink,
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: const Text('GAME OVER!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  decoration: AppTheme.neonBorderDecoration(
+                    color: AppTheme.neonPink,
+                  ),
+                  child: const Text(
+                    'GAME OVER!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               if (provider.isWon)
                 AnimatedNeonContainer(
                   color: AppTheme.neonGreen,
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: const Text('YOU REACHED 2048!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  decoration: AppTheme.neonBorderDecoration(
+                    color: AppTheme.neonGreen,
+                  ),
+                  child: const Text(
+                    'YOU REACHED 2048!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
 
               // 4x4 Grid Layout
@@ -120,11 +163,12 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                   ),
                   child: GridView.builder(
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
                     itemCount: 16,
                     itemBuilder: (context, index) {
                       final val = provider.board[index];
@@ -136,7 +180,11 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                         child: Text(
                           val == 0 ? '' : '$val',
                           style: TextStyle(
-                            fontSize: val >= 1024 ? 14 : val >= 128 ? 18 : 22,
+                            fontSize: val >= 1024
+                                ? 14
+                                : val >= 128
+                                ? 18
+                                : 22,
                             fontWeight: FontWeight.w900,
                             color: _getTileTextColor(val),
                           ),
@@ -164,10 +212,14 @@ class _Game2048ScreenState extends State<Game2048Screen> {
       children: [
         // Your Score
         _buildScoreBox("YOUR SCORE", provider.score, AppTheme.neonCyan),
-        
+
         // Network Opponent Score or Legend
         if (isNetwork)
-          _buildScoreBox("OPPONENT SCORE", provider.opponentScore, AppTheme.neonPink)
+          _buildScoreBox(
+            "OPPONENT SCORE",
+            provider.opponentScore,
+            AppTheme.neonPink,
+          )
         else
           _buildScoreBox("BEST RATING", 2048, AppTheme.neonGreen),
       ],
@@ -181,9 +233,24 @@ class _Game2048ScreenState extends State<Game2048Screen> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Column(
         children: [
-          Text(label, style: TextStyle(color: color.withOpacity(0.8), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('$val', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            '$val',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -242,10 +309,7 @@ class _Game2048ScreenState extends State<Game2048Screen> {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: tileGlowColor, width: 2),
       boxShadow: [
-        BoxShadow(
-          color: tileGlowColor.withOpacity(0.2),
-          blurRadius: 8,
-        ),
+        BoxShadow(color: tileGlowColor.withOpacity(0.2), blurRadius: 8),
       ],
     );
   }

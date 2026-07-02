@@ -1,11 +1,11 @@
 {
-    "name": "lazy_games",
-    "short_name": "lazy_games",
+    "name": "Lazy Games",
+    "short_name": "Lazy Games",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0d0e15",
+    "theme_color": "#0d0e15",
+    "description": "A premium bundle of classic mind and board games with a sleek neon-glassmorphic UI.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

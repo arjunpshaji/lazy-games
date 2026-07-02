@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../providers/connect_four_provider.dart';
-import '../../services/network_manager.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/animated_neon_container.dart';
+import 'package:lazy_games/providers/connect_four_provider.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
 
 class ConnectFourScreen extends StatefulWidget {
   const ConnectFourScreen({super.key});
@@ -16,21 +18,35 @@ class ConnectFourScreen extends StatefulWidget {
 class _ConnectFourScreenState extends State<ConnectFourScreen> {
   late NetworkManager _netManager;
   late ConnectFourProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
+  bool _wasMyTurn = false;
+
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<ConnectFourProvider>(context, listen: false);
-      
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      _provider.setupGame(isNetwork: isNetwork, role: role);
-
-      if (isNetwork) {
+      if (_isOnline) {
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole = _roomManager!.role == OnlineRole.host
+            ? 'host'
+            : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+      } else if (isNetwork) {
+        _provider.setupGame(isNetwork: isNetwork, role: role);
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'c4_drop') {
             final col = packet['data']['column'] as int;
@@ -39,8 +55,28 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
             _provider.setupGame(isNetwork: true, role: role);
           }
         };
+      } else {
+        _provider.setupGame(isNetwork: false, role: role);
       }
-    });
+      _wasMyTurn = _provider.isMyTurn;
+      _provider.addListener(_onProviderChanged);
+    }
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'c4_online_reset') {
+        final onlineRole = _roomManager?.role == OnlineRole.host
+            ? 'host'
+            : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+      } else if (data.containsKey('board')) {
+        final board = (data['board'] as List).cast<int>();
+        final isPlayer1Turn = data['isPlayer1Turn'] as bool;
+        _provider.applyOnlineState(board: board, isPlayer1Turn: isPlayer1Turn);
+      }
+    }
   }
 
   @override
@@ -55,17 +91,30 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
         winnerText = "MATCH DRAW!";
       } else {
         if (provider.isNetworkGame) {
-          final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                       (provider.myRole == 'client' && provider.winner == 2);
+          final iWon =
+              (provider.myRole == 'host' && provider.winner == 1) ||
+              (provider.myRole == 'client' && provider.winner == 2);
           winnerText = iWon ? "YOU WIN!" : "OPPONENT WINS!";
         } else {
-          winnerText = provider.winner == 1 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
+          winnerText = provider.winner == 1
+              ? "PLAYER 1 WINS!"
+              : "PLAYER 2 WINS!";
         }
       }
       statusWidget = AnimatedNeonContainer(
         color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+        decoration: AppTheme.neonBorderDecoration(
+          color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
+        ),
+        child: Text(
+          winnerText,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       String turnText;
@@ -73,24 +122,52 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       if (provider.isNetworkGame) {
         turnText = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
       } else {
-        turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (CYAN)" : "PLAYER 2'S TURN (VIOLET)";
+        turnText = provider.isPlayer1Turn
+            ? "PLAYER 1'S TURN (CYAN)"
+            : "PLAYER 2'S TURN (VIOLET)";
       }
 
-      statusWidget = AnimatedNeonContainer(
+      statusWidget = _PulsingTurnIndicator(
+        text: turnText,
         color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        pulse: provider.isNetworkGame ? isMyTurn : true,
       );
     }
 
+    final iWon =
+        (provider.myRole == 'host' && provider.winner == 1) ||
+        (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner =
+        provider.winner != 0 &&
+        provider.winner != 3 &&
+        (!provider.isNetworkGame || iWon);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (provider.winner == 1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!');
+
     return GameShell(
       title: 'Connect Four',
-      rules: 'Select a column to drop a chip. First to align 4 chips in a row (horizontally, vertically, or diagonally) wins.',
+      rules:
+          'Select a column to drop a chip. First to align 4 chips in a row (horizontally, vertically, or diagonally) wins.',
       statusWidget: statusWidget,
-      onReset: provider.isNetworkGame && provider.myRole != 'host'
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
+      isInProgress:
+          provider.winner == 0 && provider.board.any((cell) => cell != 0),
+      onReset:
+          provider.isNetworkGame &&
+              provider.myRole != 'host' &&
+              provider.winner != 0
           ? null
           : () {
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                final onlineRole = _roomManager?.role == OnlineRole.host
+                    ? 'host'
+                    : 'client';
+                _provider.setupGame(isNetwork: true, role: onlineRole);
+                _roomManager?.sendGameState({'type': 'c4_online_reset'});
+              } else if (provider.isNetworkGame) {
                 _provider.setupGame(isNetwork: true, role: provider.myRole);
                 netManager.sendMessage('c4_reset', {});
               } else {
@@ -104,7 +181,9 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
             Text(
               "Your Color: ${provider.myRole == 'host' ? 'Cyan' : 'Violet'}",
               style: TextStyle(
-                color: provider.myRole == 'host' ? AppTheme.neonCyan : AppTheme.neonViolet,
+                color: provider.myRole == 'host'
+                    ? AppTheme.neonCyan
+                    : AppTheme.neonViolet,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -120,16 +199,11 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.arrow_downward),
                   color: provider.isMyTurn && provider.winner == 0
-                      ? (provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet)
+                      ? (provider.isPlayer1Turn
+                            ? AppTheme.neonCyan
+                            : AppTheme.neonViolet)
                       : Colors.white24,
-                  onPressed: () {
-                    if (provider.isMyTurn && provider.winner == 0) {
-                      final success = provider.dropDisc(col);
-                      if (success && provider.isNetworkGame) {
-                        netManager.sendMessage('c4_drop', {'column': col});
-                      }
-                    }
-                  },
+                  onPressed: () => _dropDisc(col, provider, netManager),
                 ),
               );
             }),
@@ -140,15 +214,18 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue[900]?.withOpacity(0.85),
+              color: Colors.blue[900]?.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue[600]!, width: 3),
+              // border: Border.all(color: Colors.blue[600]!, width: 3),
+              border: provider.isPlayer1Turn
+                  ? Border.all(color: AppTheme.neonCyan, width: 3)
+                  : Border.all(color: AppTheme.neonViolet, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue[900]!.withOpacity(0.5),
+                  color: Colors.blue[900]!.withValues(alpha: 0.5),
                   blurRadius: 15,
                   spreadRadius: 2,
-                )
+                ),
               ],
             ),
             child: GridView.builder(
@@ -163,7 +240,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
               itemBuilder: (context, index) {
                 final cell = provider.board[index];
                 final isWinning = provider.winningCells.contains(index);
-                
+
                 Color discColor = Colors.transparent;
                 if (cell == 1) {
                   discColor = AppTheme.neonCyan;
@@ -171,36 +248,48 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                   discColor = AppTheme.neonViolet;
                 }
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black26, // cutout slot
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isWinning ? AppTheme.neonGreen : Colors.blue[800]!,
-                      width: isWinning ? 3.0 : 1.5,
+                final col = index % 7;
+                return GestureDetector(
+                  onTap: () => _dropDisc(col, provider, netManager),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black26, // cutout slot
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isWinning
+                            ? AppTheme.neonGreen
+                            : Colors.blue[800]!,
+                        width: isWinning ? 3.0 : 1.5,
+                      ),
+                      boxShadow: isWinning
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.neonGreen.withValues(
+                                  alpha: 0.6,
+                                ),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : [],
                     ),
-                    boxShadow: isWinning ? [
-                      BoxShadow(
-                        color: AppTheme.neonGreen.withOpacity(0.6),
-                        blurRadius: 10,
-                      )
-                    ] : [],
-                  ),
-                  child: FractionallySizedBox(
-                    widthFactor: 0.85,
-                    heightFactor: 0.85,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.bounceOut,
-                      decoration: BoxDecoration(
-                        color: discColor,
-                        shape: BoxShape.circle,
-                        boxShadow: cell != 0 ? [
-                          BoxShadow(
-                            color: discColor.withOpacity(0.5),
-                            blurRadius: 6,
-                          )
-                        ] : [],
+                    child: FractionallySizedBox(
+                      widthFactor: 0.85,
+                      heightFactor: 0.85,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.bounceOut,
+                        decoration: BoxDecoration(
+                          color: discColor,
+                          shape: BoxShape.circle,
+                          boxShadow: cell != 0
+                              ? [
+                                  BoxShadow(
+                                    color: discColor.withValues(alpha: 0.5),
+                                    blurRadius: 6,
+                                  ),
+                                ]
+                              : [],
+                        ),
                       ),
                     ),
                   ),
@@ -210,6 +299,149 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  void dispose() {
+    try {
+      _provider.removeListener(_onProviderChanged);
+    } catch (_) {}
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
+    _netManager.onMessageReceived = null;
+    super.dispose();
+  }
+
+  void _onProviderChanged() {
+    if (!mounted) return;
+    final isMyTurn = _provider.isMyTurn;
+    if (_provider.isNetworkGame &&
+        isMyTurn &&
+        !_wasMyTurn &&
+        _provider.winner == 0) {
+      HapticFeedback.lightImpact();
+    }
+    _wasMyTurn = isMyTurn;
+  }
+
+  void _dropDisc(
+    int col,
+    ConnectFourProvider provider,
+    NetworkManager netManager,
+  ) {
+    if (provider.isMyTurn && provider.winner == 0) {
+      final success = provider.dropDisc(col);
+      if (success) {
+        AudioService.instance.gameMove();
+        if (_isOnline) {
+          _roomManager?.sendGameState({
+            'board': provider.board,
+            'isPlayer1Turn': provider.isPlayer1Turn,
+          });
+        } else if (provider.isNetworkGame) {
+          netManager.sendMessage('c4_drop', {'column': col});
+        }
+      }
+    }
+  }
+}
+
+class _PulsingTurnIndicator extends StatefulWidget {
+  final String text;
+  final Color color;
+  final bool pulse;
+
+  const _PulsingTurnIndicator({
+    required this.text,
+    required this.color,
+    required this.pulse,
+  });
+
+  @override
+  State<_PulsingTurnIndicator> createState() => _PulsingTurnIndicatorState();
+}
+
+class _PulsingTurnIndicatorState extends State<_PulsingTurnIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+
+    if (widget.pulse) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulsingTurnIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pulse != oldWidget.pulse) {
+      if (widget.pulse) {
+        _controller.repeat(reverse: true);
+      } else {
+        _controller.stop();
+        _controller.animateTo(0.0, duration: const Duration(milliseconds: 300));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final glow = _animation.value;
+        final scale = widget.pulse ? 1.0 + (0.04 * glow) : 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+            decoration: BoxDecoration(
+              color: widget.color.withValues(alpha: 0.06 + 0.08 * glow),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: widget.color.withValues(alpha: 0.3 + 0.7 * glow),
+                width: 1.5 + 1.0 * glow,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withValues(alpha: 0.1 + 0.4 * glow),
+                  blurRadius: 8 + 12 * glow,
+                  spreadRadius: 0.5 + 1.5 * glow,
+                ),
+              ],
+            ),
+            child: Text(
+              widget.text,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: widget.color.withOpacity(0.6 * glow),
+                    blurRadius: 6 * glow,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

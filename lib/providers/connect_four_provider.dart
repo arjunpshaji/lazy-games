@@ -87,6 +87,63 @@ class ConnectFourProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Apply full board state from Supabase Realtime.
+  void applyOnlineState({required List<int> board, required bool isPlayer1Turn}) {
+    _board = List<int>.from(board);
+    _isPlayer1Turn = isPlayer1Turn;
+    _checkWinFull();
+    notifyListeners();
+  }
+
+  void _checkWinFull() {
+    _winner = 0;
+    _winningCells = [];
+
+    int getVal(int r, int c) {
+      if (r < 0 || r >= 6 || c < 0 || c >= 7) return -1;
+      return _board[r * 7 + c];
+    }
+
+    final directions = [
+      [0, 1],  // Horizontal
+      [1, 0],  // Vertical
+      [1, 1],  // Diagonal down-right
+      [1, -1], // Diagonal down-left
+    ];
+
+    for (int row = 0; row < 6; row++) {
+      for (int col = 0; col < 7; col++) {
+        final player = getVal(row, col);
+        if (player == 0 || player == -1) continue;
+
+        for (var dir in directions) {
+          int dRow = dir[0];
+          int dCol = dir[1];
+
+          final currentWinCells = [row * 7 + col];
+          int r = row + dRow;
+          int c = col + dCol;
+          while (getVal(r, c) == player) {
+            currentWinCells.add(r * 7 + c);
+            r += dRow;
+            c += dCol;
+          }
+
+          if (currentWinCells.length >= 4) {
+            _winner = player;
+            _winningCells = currentWinCells;
+            return;
+          }
+        }
+      }
+    }
+
+    // Check draw
+    if (!_board.contains(0)) {
+      _winner = 3; // Draw
+    }
+  }
+
   void _checkWin(int row, int col, int player) {
     // Helper to get value
     int getVal(int r, int c) {

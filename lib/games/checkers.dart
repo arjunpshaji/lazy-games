@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/checkers_provider.dart';
-import '../../services/network_manager.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/animated_neon_container.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/services/supabase_room_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/providers/checkers_provider.dart';
 
 class CheckersScreen extends StatefulWidget {
   const CheckersScreen({super.key});
@@ -16,21 +17,34 @@ class CheckersScreen extends StatefulWidget {
 class _CheckersScreenState extends State<CheckersScreen> {
   late NetworkManager _netManager;
   late CheckersProvider _provider;
+  SupabaseRoomManager? _roomManager;
+  bool _isOnline = false;
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<CheckersProvider>(context, listen: false);
-      
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      _netInitialized = true;
+
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
+      _isOnline = args?['online'] ?? false;
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
-      _provider.setupGame(isNetwork: isNetwork, role: role);
-
-      if (isNetwork) {
+      if (_isOnline) {
+        _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
+        final onlineRole = _roomManager!.role == OnlineRole.host
+            ? 'host'
+            : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+        _roomManager!.addMessageListener(_handleOnlineMessage);
+      } else if (isNetwork) {
+        _provider.setupGame(isNetwork: isNetwork, role: role);
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'checkers_move') {
             final from = packet['data']['from'] as int;
@@ -40,8 +54,33 @@ class _CheckersScreenState extends State<CheckersScreen> {
             _provider.setupGame(isNetwork: true, role: role);
           }
         };
+      } else {
+        _provider.setupGame(isNetwork: false, role: role);
       }
     });
+  }
+
+  void _handleOnlineMessage(Map<String, dynamic> packet) {
+    if (packet['type'] == 'game_state_update') {
+      final data = packet['data'] as Map<String, dynamic>;
+      if (data['type'] == 'checkers_online_reset') {
+        final onlineRole = _roomManager?.role == OnlineRole.host
+            ? 'host'
+            : 'client';
+        _provider.setupGame(isNetwork: true, role: onlineRole);
+      } else if (data.containsKey('board')) {
+        final board = (data['board'] as List).cast<int>();
+        final isPlayer1Turn = data['isPlayer1Turn'] as bool;
+        _provider.applyOnlineState(board: board, isPlayer1Turn: isPlayer1Turn);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _roomManager?.removeMessageListener(_handleOnlineMessage);
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   @override
@@ -53,8 +92,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
     if (provider.winner != 0) {
       String winnerText;
       if (provider.isNetworkGame) {
-        final iWon = (provider.myRole == 'host' && provider.winner == 1) ||
-                     (provider.myRole == 'client' && provider.winner == 2);
+        final iWon =
+            (provider.myRole == 'host' && provider.winner == 1) ||
+            (provider.myRole == 'client' && provider.winner == 2);
         winnerText = iWon ? "YOU WIN!" : "OPPONENT WINS!";
       } else {
         winnerText = provider.winner == 1 ? "PINK WINS!" : "CYAN WINS!";
@@ -62,7 +102,15 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Text(winnerText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
+        child: Text(
+          winnerText,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       String turnText;
@@ -70,24 +118,62 @@ class _CheckersScreenState extends State<CheckersScreen> {
       if (provider.isNetworkGame) {
         turnText = isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN";
       } else {
-        turnText = provider.isPlayer1Turn ? "PLAYER 1'S TURN (PINK)" : "PLAYER 2'S TURN (CYAN)";
+        turnText = provider.isPlayer1Turn
+            ? "PLAYER 1'S TURN (PINK)"
+            : "PLAYER 2'S TURN (CYAN)";
       }
 
       statusWidget = AnimatedNeonContainer(
         color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Text(turnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        decoration: AppTheme.neonBorderDecoration(
+          color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
+        ),
+        child: Text(
+          turnText,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       );
     }
 
+    final iWon =
+        (provider.myRole == 'host' && provider.winner == 1) ||
+        (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner = provider.winner != 0 && (!provider.isNetworkGame || iWon);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (provider.winner == 1 ? 'PINK WINS!' : 'CYAN WINS!');
+
+    final iWon =
+        (provider.myRole == 'host' && provider.winner == 1) ||
+        (provider.myRole == 'client' && provider.winner == 2);
+    final isWinner = provider.winner != 0 && (!provider.isNetworkGame || iWon);
+    final winSubtitle = provider.isNetworkGame
+        ? 'YOU WON!'
+        : (provider.winner == 1 ? 'PINK WINS!' : 'CYAN WINS!');
+
     return GameShell(
       title: 'Checkers',
-      rules: 'Select your pieces and move diagonally forward on dark squares. Capture opponent pieces by jumping over them. Reach the end to get crowned King!',
+      rules:
+          'Select your pieces and move diagonally forward on dark squares. Capture opponent pieces by jumping over them. Reach the end to get crowned King!',
       statusWidget: statusWidget,
-      onReset: provider.isNetworkGame && provider.myRole != 'host'
+      isWinner: isWinner,
+      winSubtitle: winSubtitle,
+      isOnlineGame: _isOnline,
+      isInProgress: provider.winner == 0,
+      onReset:
+          provider.isNetworkGame &&
+              provider.myRole != 'host' &&
+              provider.winner != 0
           ? null
           : () {
-              if (provider.isNetworkGame) {
+              if (_isOnline) {
+                final onlineRole = _roomManager?.role == OnlineRole.host
+                    ? 'host'
+                    : 'client';
+                _provider.setupGame(isNetwork: true, role: onlineRole);
+                _roomManager?.sendGameState({'type': 'checkers_online_reset'});
+              } else if (provider.isNetworkGame) {
                 _provider.setupGame(isNetwork: true, role: provider.myRole);
                 netManager.sendMessage('checkers_reset', {});
               } else {
@@ -101,7 +187,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
             Text(
               "Your Color: ${provider.myRole == 'host' ? 'Pink' : 'Cyan'}",
               style: TextStyle(
-                color: provider.myRole == 'host' ? AppTheme.neonPink : AppTheme.neonCyan,
+                color: provider.myRole == 'host'
+                    ? AppTheme.neonPink
+                    : AppTheme.neonCyan,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -133,7 +221,9 @@ class _CheckersScreenState extends State<CheckersScreen> {
                   final isSelected = provider.selectedPiece == index;
                   final isValidMove = provider.validMoves.contains(index);
 
-                  Color squareColor = isDarkSquare ? Colors.black45 : Colors.white.withOpacity(0.04);
+                  Color squareColor = isDarkSquare
+                      ? Colors.black45
+                      : Colors.white.withOpacity(0.04);
                   if (isValidMove) {
                     squareColor = AppTheme.neonGreen.withOpacity(0.15);
                   }
@@ -145,11 +235,19 @@ class _CheckersScreenState extends State<CheckersScreen> {
                           if (isValidMove) {
                             final fromIdx = provider.selectedPiece;
                             final success = provider.makeMove(index);
-                            if (success && provider.isNetworkGame) {
-                              netManager.sendMessage('checkers_move', {
-                                'from': fromIdx,
-                                'to': index,
-                              });
+                            if (success) {
+                              AudioService.instance.gameMove();
+                              if (_isOnline) {
+                                _roomManager?.sendGameState({
+                                  'board': provider.board,
+                                  'isPlayer1Turn': provider.isPlayer1Turn,
+                                });
+                              } else if (provider.isNetworkGame) {
+                                netManager.sendMessage('checkers_move', {
+                                  'from': fromIdx,
+                                  'to': index,
+                                });
+                              }
                             }
                           } else {
                             provider.selectPiece(index);
@@ -164,14 +262,12 @@ class _CheckersScreenState extends State<CheckersScreen> {
                           color: isSelected
                               ? AppTheme.neonGreen
                               : isValidMove
-                                  ? AppTheme.neonGreen.withOpacity(0.5)
-                                  : Colors.transparent,
+                              ? AppTheme.neonGreen.withOpacity(0.5)
+                              : Colors.transparent,
                           width: (isSelected || isValidMove) ? 1.5 : 0,
                         ),
                       ),
-                      child: Center(
-                        child: _buildPiece(piece),
-                      ),
+                      child: Center(child: _buildPiece(piece)),
                     ),
                   );
                 },
@@ -198,18 +294,11 @@ class _CheckersScreenState extends State<CheckersScreen> {
         shape: BoxShape.circle,
         border: Border.all(color: pieceColor, width: 2),
         boxShadow: [
-          BoxShadow(
-            color: pieceColor.withOpacity(0.4),
-            blurRadius: 8,
-          ),
+          BoxShadow(color: pieceColor.withOpacity(0.4), blurRadius: 8),
         ],
       ),
       child: isKing
-          ? const Icon(
-              Icons.star,
-              color: Colors.amber,
-              size: 14,
-            )
+          ? const Icon(Icons.star, color: Colors.amber, size: 14)
           : null,
     );
   }

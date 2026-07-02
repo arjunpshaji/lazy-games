@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lazy_games/providers/minesweeper_provider.dart';
+import 'package:lazy_games/services/audio_service.dart';
+import 'package:lazy_games/services/network_manager.dart';
+import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
-import '../../providers/minesweeper_provider.dart';
-import '../../services/network_manager.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/game_shell.dart';
-import '../../widgets/animated_neon_container.dart';
 
 class MinesweeperScreen extends StatefulWidget {
   const MinesweeperScreen({super.key});
@@ -17,17 +18,21 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
   late NetworkManager _netManager;
   late MinesweeperProvider _provider;
   bool _tapToFlag = false; // Mobile-friendly toggle
+  bool _netInitialized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<MinesweeperProvider>(context, listen: false);
-      
+      _netInitialized = true;
+
       _provider.setupGame();
 
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
 
       if (isNetwork) {
@@ -60,18 +65,34 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
     } else {
       final wasFirstTap = !_provider.firstTapDone;
       _provider.revealCell(index);
-      
+
+      // Sound feedback
+      if (_provider.isGameOver) {
+        AudioService.instance.mineExplode();
+      } else {
+        AudioService.instance.gameMove();
+      }
+
       if (_netManager.isConnected) {
         if (wasFirstTap) {
           // Wait briefly for isolate board generation to complete, then sync it
           Future.delayed(const Duration(milliseconds: 100), () {
-            _netManager.sendMessage('ms_setup', {'grid': _provider.getFlatGrid()});
+            if (!mounted) return;
+            _netManager.sendMessage('ms_setup', {
+              'grid': _provider.getFlatGrid(),
+            });
           });
         } else {
           _netManager.sendMessage('ms_reveal', {'index': index});
         }
       }
     }
+  }
+
+  @override
+  void dispose() {
+    if (_netInitialized) _netManager.onMessageReceived = null;
+    super.dispose();
   }
 
   void _onCellLongPress(int index) {
@@ -92,13 +113,29 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonPink,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: const Text('BOOM! GAME OVER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
+        child: const Text(
+          'BOOM! GAME OVER',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else if (provider.isWon) {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: const Text('MINES CLEARED!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
+        child: const Text(
+          'MINES CLEARED!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
       );
     } else {
       statusWidget = Row(
@@ -108,7 +145,10 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
           const SizedBox(width: 6),
           Text(
             'Flags: ${provider.flaggedCount} / ${provider.numMines}',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
           ),
         ],
       );
@@ -116,8 +156,11 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
 
     return GameShell(
       title: 'Minesweeper',
-      rules: 'Tap a cell to reveal it. Numbers represent surrounding mines. Long press a cell (or toggle Flag Mode below) to flag suspected mines. Clear all safe cells to win.',
+      rules:
+          'Tap a cell to reveal it. Numbers represent surrounding mines. Long press a cell (or toggle Flag Mode below) to flag suspected mines. Clear all safe cells to win.',
       statusWidget: statusWidget,
+      isWinner: provider.isWon,
+      winSubtitle: 'YOU CLEARED THE BOARD!',
       onReset: () {
         provider.setupGame();
         if (netManager.isConnected) {
@@ -128,45 +171,47 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(40.0),
-                child: CircularProgressIndicator(color: AppTheme.neonCyan),
+                child: LottieLoader(size: 220),
               ),
             )
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 10x10 Grid
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 10,
-                        crossAxisSpacing: 1.5,
-                        mainAxisSpacing: 1.5,
+                if (provider.grid.isNotEmpty)
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      itemCount: 100,
-                      itemBuilder: (context, index) {
-                        final cell = provider.grid[index];
-                        return GestureDetector(
-                          onTap: () => _onCellTap(index),
-                          onLongPress: () => _onCellLongPress(index),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            decoration: _getCellDecoration(cell),
-                            alignment: Alignment.center,
-                            child: _buildCellContent(cell),
-                          ),
-                        );
-                      },
+                      clipBehavior: Clip.antiAlias,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 10,
+                              crossAxisSpacing: 1.5,
+                              mainAxisSpacing: 1.5,
+                            ),
+                        itemCount: 100,
+                        itemBuilder: (context, index) {
+                          final cell = provider.grid[index];
+                          return GestureDetector(
+                            onTap: () => _onCellTap(index),
+                            onLongPress: () => _onCellLongPress(index),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: _getCellDecoration(cell),
+                              alignment: Alignment.center,
+                              child: _buildCellContent(cell),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 20),
 
                 // Flag Mode Toggle for mobile convenience
@@ -176,7 +221,13 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
                     FilterChip(
                       label: Row(
                         children: [
-                          Icon(Icons.flag, size: 18, color: _tapToFlag ? AppTheme.neonGreen : AppTheme.textSecondary),
+                          Icon(
+                            Icons.flag,
+                            size: 18,
+                            color: _tapToFlag
+                                ? AppTheme.neonGreen
+                                : AppTheme.textSecondary,
+                          ),
                           const SizedBox(width: 6),
                           const Text('Flag Mode'),
                         ],

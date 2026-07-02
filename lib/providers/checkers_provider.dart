@@ -119,6 +119,16 @@ class CheckersProvider extends ChangeNotifier {
     makeMove(toIndex);
   }
 
+  /// Apply full board state from Supabase Realtime.
+  void applyOnlineState({required List<int> board, required bool isPlayer1Turn}) {
+    _board = List<int>.from(board);
+    _isPlayer1Turn = isPlayer1Turn;
+    _selectedPiece = -1;
+    _validMoves = [];
+    _checkWinState();
+    notifyListeners();
+  }
+
   List<int> _calculateValidMoves(int index) {
     final cell = _board[index];
     if (cell == 0) return [];

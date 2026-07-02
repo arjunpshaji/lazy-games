@@ -14,11 +14,26 @@ class NetworkManager extends ChangeNotifier {
   
   dynamic _server; // Holds the HttpServer on mobile
   WebSocketChannel? _channel;
+  Timer? _pingTimer;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 3;
+  String? _hostIp;
+  int? _hostPort;
   
   // Callback for when a message is received
   void Function(Map<String, dynamic>)? onMessageReceived;
   void Function()? onConnected;
   void Function()? onDisconnected;
+
+  final List<void Function(Map<String, dynamic>)> _messageListeners = [];
+
+  void addMessageListener(void Function(Map<String, dynamic>) listener) {
+    _messageListeners.add(listener);
+  }
+
+  void removeMessageListener(void Function(Map<String, dynamic>) listener) {
+    _messageListeners.remove(listener);
+  }
 
   NetworkRole get role => _role;
   String? get localIp => _localIp;
@@ -65,8 +80,10 @@ class NetworkManager extends ChangeNotifier {
           _channel = wrapped;
           _isSearching = false;
           _isConnected = true;
+          _reconnectAttempts = 0;
           notifyListeners();
           onConnected?.call();
+          _startPingTimer();
           _listenToChannel();
         }
       });
@@ -82,20 +99,29 @@ class NetworkManager extends ChangeNotifier {
     await stop();
     _role = NetworkRole.client;
     _isSearching = true;
+    _hostIp = ipAddress;
+    _hostPort = port;
     notifyListeners();
 
     try {
       final wsUrl = Uri.parse('ws://$ipAddress:$port/ws');
-      _channel = WebSocketChannel.connect(wsUrl);
+      final channel = WebSocketChannel.connect(wsUrl);
       
+      // Wait for WebSocket handshake to succeed
+      await channel.ready;
+      
+      _channel = channel;
       _isConnected = true;
       _isSearching = false;
+      _reconnectAttempts = 0;
       notifyListeners();
       onConnected?.call();
+      _startPingTimer();
       _listenToChannel();
     } catch (e) {
       debugPrint("Error connecting to host: $e");
       stop();
+      rethrow;
     }
   }
 
@@ -104,7 +130,16 @@ class NetworkManager extends ChangeNotifier {
       (message) {
         try {
           final decoded = jsonDecode(message) as Map<String, dynamic>;
+          // Silently swallow keepalive pings — they are not game packets.
+          if (decoded['type'] == 'ping') return;
           onMessageReceived?.call(decoded);
+          for (final listener in List.of(_messageListeners)) {
+            try {
+              listener(decoded);
+            } catch (e) {
+              debugPrint("Error in network message listener: $e");
+            }
+          }
         } catch (e) {
           debugPrint("Error parsing incoming message: $e");
         }
@@ -115,9 +150,55 @@ class NetworkManager extends ChangeNotifier {
       },
       onDone: () {
         debugPrint("WebSocket stream closed");
-        stop();
+        _stopPingTimer();
+        // For clients, attempt automatic reconnection before giving up.
+        if (_role == NetworkRole.client &&
+            _hostIp != null &&
+            _hostPort != null &&
+            _reconnectAttempts < _maxReconnectAttempts) {
+          _reconnectAttempts++;
+          debugPrint('WebSocket reconnecting (attempt $_reconnectAttempts/$_maxReconnectAttempts)...');
+          Future.delayed(const Duration(seconds: 2), () async {
+            if (_role != NetworkRole.client) return; // already stopped
+            try {
+              final wsUrl = Uri.parse('ws://$_hostIp:$_hostPort/ws');
+              final channel = WebSocketChannel.connect(wsUrl);
+              await channel.ready;
+              _channel = channel;
+              _isConnected = true;
+              notifyListeners();
+              _startPingTimer();
+              _listenToChannel();
+            } catch (e) {
+              debugPrint('Reconnect attempt $_reconnectAttempts failed: $e');
+              // Recurse via onDone when the failed channel closes, or stop.
+              if (_reconnectAttempts >= _maxReconnectAttempts) stop();
+            }
+          });
+        } else {
+          stop();
+        }
       },
     );
+  }
+
+  // Send a 20-second keepalive ping to prevent router/firewall idle-timeout drops.
+  void _startPingTimer() {
+    _stopPingTimer();
+    _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_channel != null && _isConnected) {
+        try {
+          _channel!.sink.add(jsonEncode({'type': 'ping'}));
+        } catch (e) {
+          debugPrint('Ping failed: $e');
+        }
+      }
+    });
+  }
+
+  void _stopPingTimer() {
+    _pingTimer?.cancel();
+    _pingTimer = null;
   }
 
   // Send a packet to the other device
@@ -142,6 +223,7 @@ class NetworkManager extends ChangeNotifier {
   Future<void> stop() async {
     _isConnected = false;
     _isSearching = false;
+    _stopPingTimer();
     
     try {
       await _channel?.sink.close();
