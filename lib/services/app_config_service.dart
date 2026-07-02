@@ -12,10 +12,12 @@ class AppConfigService {
   static final AppConfigService instance = AppConfigService._();
 
   bool _onlineMultiplayerEnabled = true; // optimistic default
+  bool _adFreeFeatureEnabled = false; // default false, bypassed only when explicitly enabled
   DateTime? _lastFetched;
   static const _cacheDuration = Duration(minutes: 30);
 
   bool get isOnlineMultiplayerEnabled => _onlineMultiplayerEnabled;
+  bool get isAdFreeFeatureEnabled => _adFreeFeatureEnabled;
 
   /// Refresh on app startup, every 30 min, and when the Online lobby opens.
   Future<bool> fetchAndCacheConfig({bool forceRefresh = false}) async {
@@ -26,15 +28,20 @@ class AppConfigService {
     if (isFresh && !forceRefresh) return _onlineMultiplayerEnabled;
 
     try {
-      final row = await SupabaseService.instance.client
+      final List<dynamic> rows = await SupabaseService.instance.client
           .from('app_config')
-          .select('value')
-          .eq('key', 'online_multiplayer')
-          .maybeSingle();
+          .select('key, value');
 
-      if (row != null) {
-        _onlineMultiplayerEnabled =
-            (row['value'] as Map<String, dynamic>)['enabled'] as bool? ?? true;
+      for (final row in rows) {
+        final key = row['key'] as String;
+        final value = row['value'] as Map<String, dynamic>;
+        final enabled = value['enabled'] as bool? ?? false;
+
+        if (key == 'online_multiplayer') {
+          _onlineMultiplayerEnabled = enabled;
+        } else if (key == 'adfree') {
+          _adFreeFeatureEnabled = enabled;
+        }
       }
       _lastFetched = now;
     } catch (e) {

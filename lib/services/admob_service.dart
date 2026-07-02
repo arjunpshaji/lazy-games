@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:lazy_games/services/ad_free_service.dart';
 
 /// AdMob rewarded ad service.
 ///
@@ -55,6 +56,10 @@ class AdMobService {
   // ── Ad Loading ────────────────────────────────────────────────────────────
   Future<void> loadRewardedAd() async {
     if (kIsWeb || !_initialized) return;
+    if (AdFreeService.instance.isAdFreeCached) {
+      debugPrint('[AdMobService] Skip loading: User is ad-free');
+      return;
+    }
     if (_rewardedAd != null) return; // Ad already loaded
     if (_isLoading) return; // Load already in progress
 
@@ -105,6 +110,13 @@ class AdMobService {
   }) async {
     if (kIsWeb) {
       onFailed?.call();
+      return;
+    }
+
+    // Immediately trigger success callback if user is ad-free
+    if (AdFreeService.instance.isAdFreeCached) {
+      debugPrint('[AdMobService] Skip showing ad: User is ad-free');
+      onRewarded();
       return;
     }
 

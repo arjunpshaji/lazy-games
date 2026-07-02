@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:lazy_games/services/admob_service.dart';
 import 'package:lazy_games/services/app_config_service.dart';
 import 'package:lazy_games/services/entitlement_service.dart';
+import 'package:lazy_games/services/ad_free_service.dart';
 import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/app_snackbar.dart';
@@ -80,17 +81,29 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
   }
 
   Future<void> _checkAccess() async {
-    // Web: never allow (user chose option b)
-    if (kIsWeb) {
-      setState(() => _phase = _LobbyPhase.webUnsupported);
+    // Kill switch & Remote Config
+    final enabled = await AppConfigService.instance.fetchAndCacheConfig(
+      forceRefresh: true,
+    );
+    if (!enabled) {
+      setState(() => _phase = _LobbyPhase.disabled);
       return;
     }
 
-    // Kill switch
-    final enabled =
-        await AppConfigService.instance.fetchAndCacheConfig(forceRefresh: true);
-    if (!enabled) {
-      setState(() => _phase = _LobbyPhase.disabled);
+    // Web check: allow web online multiplayer ONLY if ad-free feature is enabled globally
+    if (kIsWeb) {
+      if (AppConfigService.instance.isAdFreeFeatureEnabled) {
+        _onEntitlementGranted();
+      } else {
+        setState(() => _phase = _LobbyPhase.webUnsupported);
+      }
+      return;
+    }
+
+    // Check if the user is ad-free (for mobile)
+    final isAdFree = await AdFreeService.instance.isAdFree(forceRefresh: true);
+    if (isAdFree) {
+      _onEntitlementGranted();
       return;
     }
 
@@ -237,9 +250,7 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
   Widget _buildLoading() {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: CircularProgressIndicator(color: AppTheme.neonCyan),
-      ),
+      child: Center(child: CircularProgressIndicator(color: AppTheme.neonCyan)),
     );
   }
 
@@ -369,24 +380,42 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
           children: [
             Expanded(
               child: InkWell(
-                onTap: _createRoom,
+                onTap: kIsWeb ? null : _createRoom,
                 borderRadius: BorderRadius.circular(16),
                 child: GlassContainer(
                   height: 100,
-                  borderColor: AppTheme.neonCyan.withOpacity(0.4),
-                  fillColor: AppTheme.neonCyan.withOpacity(0.08),
-                  child: const Column(
+                  borderColor: kIsWeb
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : AppTheme.neonCyan.withValues(alpha: 0.4),
+                  fillColor: kIsWeb
+                      ? Colors.transparent
+                      : AppTheme.neonCyan.withValues(alpha: 0.08),
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_circle_outline, color: AppTheme.neonCyan),
-                      SizedBox(height: 8),
+                      Icon(
+                        Icons.add_circle_outline,
+                        color: kIsWeb ? Colors.grey : AppTheme.neonCyan,
+                      ),
+                      const SizedBox(height: 8),
                       Text(
                         'CREATE ROOM',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
+                          color: kIsWeb ? Colors.grey : null,
                         ),
                       ),
+                      if (kIsWeb) ...[
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Mobile Only',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -404,10 +433,7 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.login_rounded,
-                        color: AppTheme.neonGreen,
-                      ),
+                      Icon(Icons.login_rounded, color: AppTheme.neonGreen),
                       SizedBox(height: 8),
                       Text(
                         'JOIN ROOM',
@@ -436,7 +462,11 @@ class _OnlineLobbySheetState extends State<OnlineLobbySheet> {
           fillColor: Colors.black12,
           child: Column(
             children: [
-              const Icon(Icons.wifi_tethering, color: AppTheme.neonCyan, size: 36),
+              const Icon(
+                Icons.wifi_tethering,
+                color: AppTheme.neonCyan,
+                size: 36,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Room Created!',

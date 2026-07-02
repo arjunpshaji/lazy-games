@@ -25,6 +25,8 @@ class SupabaseRoomManager extends ChangeNotifier {
   String? _lastError;
 
   RealtimeChannel? _channel;
+  int _resubscribeAttempts = 0;
+  static const int _maxResubscribeAttempts = 3;
   final List<void Function(Map<String, dynamic>)> _listeners = [];
 
   // ── Getters ──────────────────────────────────────────────────────────────
@@ -129,6 +131,7 @@ class SupabaseRoomManager extends ChangeNotifier {
       _roomCode = trimmed;
       _isConnected = true;
       _isSearching = false;
+      _gameState = updatedRow['game_state'] as Map<String, dynamic>?;
       notifyListeners();
 
       _subscribeToRoom(roomId);
@@ -142,9 +145,30 @@ class SupabaseRoomManager extends ChangeNotifier {
     }
   }
 
+  // ── Refetch current game state from DB (used by guest after channel SUBSCRIBED) ──
+  Future<void> refetchGameState() async {
+    if (_roomId == null) return;
+    try {
+      final row = await _db
+          .from('game_rooms')
+          .select('game_state')
+          .eq('id', _roomId!)
+          .maybeSingle();
+      if (row == null) return;
+      final state = row['game_state'] as Map<String, dynamic>?;
+      if (state != null) {
+        _gameState = state;
+        _notifyListeners({'type': 'game_state_update', 'data': state});
+      }
+    } catch (e) {
+      debugPrint('[SupabaseRoomManager] refetchGameState error: $e');
+    }
+  }
+
   // ── Send game state (move broadcast) ─────────────────────────────────────
   Future<void> sendGameState(Map<String, dynamic> state) async {
     if (_roomId == null || !_isConnected) return;
+    _gameState = state;
     try {
       await _db.from('game_rooms').update({
         'game_state': state,
@@ -190,9 +214,29 @@ class SupabaseRoomManager extends ChangeNotifier {
       if (error != null) {
         debugPrint('[SupabaseRoomManager] Realtime subscription error: $error');
       }
-      if (status == RealtimeSubscribeStatus.channelError || 
-          status == RealtimeSubscribeStatus.timedOut) {
-        debugPrint('[SupabaseRoomManager] Connection lost, notifying listeners of room abandonment');
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        _resubscribeAttempts = 0;
+        // Guest may have missed the host's initial game_state write while the
+        // channel was still connecting. Refetch to guarantee the grid loads.
+        if (_role == OnlineRole.guest) {
+          refetchGameState();
+        }
+      } else if (status == RealtimeSubscribeStatus.timedOut) {
+        // Timeout is transient — attempt to re-subscribe rather than abandoning.
+        if (_resubscribeAttempts < _maxResubscribeAttempts && _roomId != null) {
+          _resubscribeAttempts++;
+          debugPrint('[SupabaseRoomManager] Channel timed out, retrying ($_resubscribeAttempts/$_maxResubscribeAttempts)...');
+          try { _channel?.unsubscribe(); } catch (_) {}
+          _channel = null;
+          Future.delayed(const Duration(seconds: 2), () {
+            if (_roomId != null) _subscribeToRoom(_roomId!);
+          });
+        } else {
+          debugPrint('[SupabaseRoomManager] Max resubscribe attempts reached, abandoning.');
+          _notifyListeners({'type': 'room_abandoned', 'data': {}});
+        }
+      } else if (status == RealtimeSubscribeStatus.channelError) {
+        debugPrint('[SupabaseRoomManager] Channel error, notifying listeners of room abandonment.');
         _notifyListeners({'type': 'room_abandoned', 'data': {}});
       }
     });
@@ -237,6 +281,7 @@ class SupabaseRoomManager extends ChangeNotifier {
     _roomCode = null;
     _gameState = null;
     _gameType = null;
+    _resubscribeAttempts = 0;
 
     try {
       await _channel?.unsubscribe();

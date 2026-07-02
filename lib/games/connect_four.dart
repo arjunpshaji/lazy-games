@@ -199,22 +199,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                             ? AppTheme.neonCyan
                             : AppTheme.neonViolet)
                       : Colors.white24,
-                  onPressed: () {
-                    if (provider.isMyTurn && provider.winner == 0) {
-                      final success = provider.dropDisc(col);
-                      if (success) {
-                        AudioService.instance.gameMove();
-                        if (_isOnline) {
-                          _roomManager?.sendGameState({
-                            'board': provider.board,
-                            'isPlayer1Turn': provider.isPlayer1Turn,
-                          });
-                        } else if (provider.isNetworkGame) {
-                          netManager.sendMessage('c4_drop', {'column': col});
-                        }
-                      }
-                    }
-                  },
+                  onPressed: () => _dropDisc(col, provider, netManager),
                 ),
               );
             }),
@@ -259,40 +244,44 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
                   discColor = AppTheme.neonViolet;
                 }
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black26, // cutout slot
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isWinning ? AppTheme.neonGreen : Colors.blue[800]!,
-                      width: isWinning ? 3.0 : 1.5,
+                final col = index % 7;
+                return GestureDetector(
+                  onTap: () => _dropDisc(col, provider, netManager),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black26, // cutout slot
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isWinning ? AppTheme.neonGreen : Colors.blue[800]!,
+                        width: isWinning ? 3.0 : 1.5,
+                      ),
+                      boxShadow: isWinning
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.neonGreen.withOpacity(0.6),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : [],
                     ),
-                    boxShadow: isWinning
-                        ? [
-                            BoxShadow(
-                              color: AppTheme.neonGreen.withOpacity(0.6),
-                              blurRadius: 10,
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: FractionallySizedBox(
-                    widthFactor: 0.85,
-                    heightFactor: 0.85,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.bounceOut,
-                      decoration: BoxDecoration(
-                        color: discColor,
-                        shape: BoxShape.circle,
-                        boxShadow: cell != 0
-                            ? [
-                                BoxShadow(
-                                  color: discColor.withOpacity(0.5),
-                                  blurRadius: 6,
-                                ),
-                              ]
-                            : [],
+                    child: FractionallySizedBox(
+                      widthFactor: 0.85,
+                      heightFactor: 0.85,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.bounceOut,
+                        decoration: BoxDecoration(
+                          color: discColor,
+                          shape: BoxShape.circle,
+                          boxShadow: cell != 0
+                              ? [
+                                  BoxShadow(
+                                    color: discColor.withOpacity(0.5),
+                                    blurRadius: 6,
+                                  ),
+                                ]
+                              : [],
+                        ),
                       ),
                     ),
                   ),
@@ -325,6 +314,23 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       HapticFeedback.lightImpact();
     }
     _wasMyTurn = isMyTurn;
+  }
+
+  void _dropDisc(int col, ConnectFourProvider provider, NetworkManager netManager) {
+    if (provider.isMyTurn && provider.winner == 0) {
+      final success = provider.dropDisc(col);
+      if (success) {
+        AudioService.instance.gameMove();
+        if (_isOnline) {
+          _roomManager?.sendGameState({
+            'board': provider.board,
+            'isPlayer1Turn': provider.isPlayer1Turn,
+          });
+        } else if (provider.isNetworkGame) {
+          netManager.sendMessage('c4_drop', {'column': col});
+        }
+      }
+    }
   }
 }
 

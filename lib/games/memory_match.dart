@@ -6,6 +6,7 @@ import 'package:lazy_games/services/network_manager.dart';
 import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/widgets/glass_container.dart';
 import 'package:provider/provider.dart';
 
 class MemoryMatchScreen extends StatefulWidget {
@@ -21,15 +22,26 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   SupabaseRoomManager? _roomManager;
   bool _isOnline = false;
 
+  // 18 emojis — enough for Easy (8), Medium (18) and Hard (16) groups.
   final List<String> _cardEmojis = [
-    '🐶',
-    '✈️',
-    '🍕',
-    '🚀',
-    '🎨',
-    '🎵',
-    '🏆',
-    '🎮',
+    '🐶', // 0
+    '✈️', // 1
+    '🍕', // 2
+    '🚀', // 3
+    '🎨', // 4
+    '🎵', // 5
+    '🏆', // 6
+    '🎮', // 7
+    '🦁', // 8
+    '🌈', // 9
+    '⚡', // 10
+    '🌸', // 11
+    '🍄', // 12
+    '🐉', // 13
+    '💎', // 14
+    '🔥', // 15
+    '🧩', // 16
+    '🪐', // 17
   ];
 
   bool _initialized = false;
@@ -47,23 +59,41 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       final isNetwork = args?['network'] ?? false;
       _isOnline = args?['online'] ?? false;
       final isSolo = args?['isSolo'] ?? false;
+      final difficulty = _difficultyFromArgs(args);
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
       if (_isOnline) {
         _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
-        final onlineRole =
-            _roomManager!.role == OnlineRole.host ? 'host' : 'client';
+        final onlineRole = _roomManager!.role == OnlineRole.host
+            ? 'host'
+            : 'client';
         _roomManager!.addMessageListener(_handleOnlineMessage);
-        if (onlineRole == 'host') {
-          _generateAndSyncOnlineGame();
-        } else {
-          _provider.setupGame(
-            isNetwork: true,
-            role: onlineRole,
-            isSolo: false,
-            preShuffledCards: List.generate(16, (_) => -1),
-          );
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (onlineRole == 'host') {
+            _generateAndSyncOnlineGame(difficulty);
+          } else {
+            // Client checks if host has already generated the cards.
+            final initialCards = _roomManager?.gameState?['cards'] as List?;
+            if (initialCards != null && initialCards.isNotEmpty) {
+              final cards = initialCards.cast<int>();
+              _provider.setupGame(
+                isNetwork: true,
+                role: onlineRole,
+                isSolo: false,
+                preShuffledCards: cards,
+              );
+            } else {
+              // Client waits for host to send the real card layout.
+              _provider.setupGame(
+                isNetwork: true,
+                role: onlineRole,
+                isSolo: false,
+                preShuffledCards: [],
+              );
+            }
+          }
+        });
       } else if (isNetwork) {
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'memory_setup') {
@@ -78,55 +108,88 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             final idx = packet['data']['index'] as int;
             _provider.handleNetworkTap(idx);
           } else if (packet['type'] == 'memory_reset') {
-            _generateAndSyncNetworkGame();
+            _generateAndSyncNetworkGame(_provider.difficulty);
           }
         };
 
         if (role == 'host') {
-          _generateAndSyncNetworkGame();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _generateAndSyncNetworkGame(difficulty);
+          });
         }
       } else {
-        _provider.setupGame(isNetwork: false, role: role, isSolo: isSolo);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _provider.setupGame(
+            isNetwork: false,
+            role: role,
+            isSolo: isSolo,
+            difficulty: difficulty,
+          );
+        });
       }
+    }
+  }
+
+  MemoryDifficulty _difficultyFromArgs(Map<String, dynamic>? args) {
+    final raw = args?['difficulty'] as String?;
+    switch (raw) {
+      case 'medium':
+        return MemoryDifficulty.medium;
+      case 'hard':
+      case 'high':
+        return MemoryDifficulty.high;
+      default:
+        return MemoryDifficulty.easy;
     }
   }
 
   void _handleOnlineMessage(Map<String, dynamic> packet) {
-    final onlineRole =
-        _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+    final onlineRole = _roomManager?.role == OnlineRole.host
+        ? 'host'
+        : 'client';
     if (packet['type'] == 'game_state_update') {
       final data = packet['data'] as Map<String, dynamic>;
       if (data['type'] == 'memory_online_reset') {
         if (onlineRole == 'host') {
-          _generateAndSyncOnlineGame();
+          _generateAndSyncOnlineGame(_provider.difficulty);
         }
       } else if (data.containsKey('cards')) {
-        final cards = (data['cards'] as List).cast<int>();
-        _provider.setupGame(
-          isNetwork: true,
-          role: onlineRole,
-          isSolo: false,
-          preShuffledCards: cards,
-        );
+        // Only the guest should apply the host's card layout sync.
+        if (onlineRole != 'host') {
+          final cards = (data['cards'] as List).cast<int>();
+          _provider.setupGame(
+            isNetwork: true,
+            role: onlineRole,
+            isSolo: false,
+            preShuffledCards: cards,
+          );
+        }
       } else if (data.containsKey('tapIndex')) {
-        final idx = data['tapIndex'] as int;
-        _provider.handleNetworkTap(idx);
+        // Filter by the explicit sender role embedded at send-time.
+        final senderRole = data['senderRole'] as String?;
+        if (senderRole != null && senderRole != onlineRole) {
+          final idx = data['tapIndex'] as int;
+          _provider.handleNetworkTap(idx);
+        }
       }
     }
   }
 
-  void _generateAndSyncOnlineGame() {
-    final cards = List.generate(8, (i) => i) + List.generate(8, (i) => i);
-    cards.shuffle();
-    final onlineRole =
-        _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+  void _generateAndSyncOnlineGame(MemoryDifficulty difficulty) {
+    // Temporarily set difficulty so generateCards() uses the correct pool.
     _provider.setupGame(
       isNetwork: true,
-      role: onlineRole,
+      role: _roomManager?.role == OnlineRole.host ? 'host' : 'client',
       isSolo: false,
-      preShuffledCards: cards,
+      difficulty: difficulty,
     );
-    _roomManager?.sendGameState({'cards': cards});
+    final cards = _provider.cards;
+    _roomManager?.sendGameState({
+      'cards': cards,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   @override
@@ -136,17 +199,31 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     super.dispose();
   }
 
-  void _generateAndSyncNetworkGame() {
-    final cards = List.generate(8, (i) => i) + List.generate(8, (i) => i);
-    cards.shuffle();
-
+  void _generateAndSyncNetworkGame(MemoryDifficulty difficulty) {
     _provider.setupGame(
       isNetwork: true,
       role: 'host',
       isSolo: false,
-      preShuffledCards: cards,
+      difficulty: difficulty,
     );
+    final cards = _provider.cards;
     _netManager.sendMessage('memory_setup', {'cards': cards});
+  }
+
+  void _changeDifficulty(MemoryDifficulty diff) {
+    if (_isOnline) {
+      _generateAndSyncOnlineGame(diff);
+    } else if (_provider.isNetworkGame) {
+      _generateAndSyncNetworkGame(diff);
+      _netManager.sendMessage('memory_reset', {});
+    } else {
+      _provider.setupGame(
+        isNetwork: false,
+        role: 'host',
+        isSolo: _provider.isSolo,
+        difficulty: diff,
+      );
+    }
   }
 
   @override
@@ -230,10 +307,26 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
               ? 'YOU WON!'
               : (win1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!'));
 
+    // Difficulty badge label
+    final diffLabel = provider.difficulty == MemoryDifficulty.high
+        ? 'HIGH  7×7 · TRIPLETS'
+        : provider.difficulty == MemoryDifficulty.medium
+        ? 'MEDIUM  6×6'
+        : 'EASY  4×4';
+    final diffColor = provider.difficulty == MemoryDifficulty.high
+        ? AppTheme.neonPink
+        : provider.difficulty == MemoryDifficulty.medium
+        ? AppTheme.neonOrange
+        : AppTheme.neonGreen;
+
+    final cols = provider.gridColumns;
+    final total = provider.totalCards;
+
     return GameShell(
       title: 'Memory Match',
       rules:
-          'Flip cards and find matching pairs. Find a match to earn another turn. Complete all pairs to finish the game.',
+          'Flip cards and find matching ${provider.difficulty == MemoryDifficulty.high ? 'triplets' : 'pairs'}. '
+          'Find a match to earn another turn. Complete all groups to finish the game.',
       statusWidget: statusWidget,
       isWinner: isWinner,
       winSubtitle: winSubtitle,
@@ -248,31 +341,106 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           ? null
           : () {
               if (_isOnline) {
-                _roomManager?.sendGameState({'type': 'memory_online_reset'});
-                final onlineRole =
-                    _roomManager?.role == OnlineRole.host ? 'host' : 'client';
-                if (onlineRole == 'host') _generateAndSyncOnlineGame();
+                _roomManager?.sendGameState({
+                  'type': 'memory_online_reset',
+                  'ts': DateTime.now().millisecondsSinceEpoch,
+                });
+                final onlineRole = _roomManager?.role == OnlineRole.host
+                    ? 'host'
+                    : 'client';
+                if (onlineRole == 'host') {
+                  _generateAndSyncOnlineGame(provider.difficulty);
+                }
               } else if (provider.isNetworkGame) {
-                _generateAndSyncNetworkGame();
+                _generateAndSyncNetworkGame(provider.difficulty);
                 netManager.sendMessage('memory_reset', {});
               } else {
                 provider.setupGame(
                   isNetwork: false,
                   role: 'host',
                   isSolo: provider.isSolo,
+                  difficulty: provider.difficulty,
                 );
               }
             },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Scores Info
+          // Difficulty Selector / Badge
+          if (provider.cards.isNotEmpty)
+            if (!provider.isNetworkGame || provider.myRole == 'host')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: MemoryDifficulty.values.map((diff) {
+                    final active = provider.difficulty == diff;
+                    final String label = diff == MemoryDifficulty.high
+                        ? 'HIGH'
+                        : diff == MemoryDifficulty.medium
+                            ? 'MEDIUM'
+                            : 'EASY';
+                    final Color color = diff == MemoryDifficulty.high
+                        ? AppTheme.neonPink
+                        : diff == MemoryDifficulty.medium
+                            ? AppTheme.neonOrange
+                            : AppTheme.neonGreen;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                      child: GestureDetector(
+                        onTap: () => _changeDifficulty(diff),
+                        child: GlassContainer(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          borderRadius: 24,
+                          borderColor: active
+                              ? color.withOpacity(0.6)
+                              : Colors.white.withOpacity(0.08),
+                          fillColor: active
+                              ? color.withOpacity(0.15)
+                              : Colors.white.withOpacity(0.02),
+                          child: Text(
+                            label,
+                            style: AppTheme.labelCaps.copyWith(
+                              color: active ? Colors.white : AppTheme.textSecondary,
+                              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: diffColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: diffColor.withOpacity(0.5), width: 1),
+                ),
+                child: Text(
+                  diffLabel,
+                  style: TextStyle(
+                    color: diffColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+
+          // Scores info
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               if (provider.isSolo) ...[
                 _buildPlayerScore(
-                  "PAIRS MATCHED",
+                  "GROUPS FOUND",
                   provider.player1Score,
                   AppTheme.neonCyan,
                   true,
@@ -309,19 +477,26 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           ),
           const SizedBox(height: 24),
 
-          // 4x4 Cards Grid
+          // Card grid — dynamic columns and card count
           if (provider.cards.isNotEmpty)
             AspectRatio(
-              aspectRatio: 1,
+              aspectRatio: cols / ((total / cols).ceil()),
               child: GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  crossAxisSpacing: cols > 5 ? 6 : 10,
+                  mainAxisSpacing: cols > 5 ? 6 : 10,
                 ),
-                itemCount: 16,
+                itemCount: total,
                 itemBuilder: (context, index) {
+                  final cardValue = provider.cards[index];
+
+                  // Blank placeholder cell (hard mode, 49th card)
+                  if (cardValue == -1) {
+                    return const SizedBox.shrink();
+                  }
+
                   final isFlipped = provider.flipped[index];
                   final isMatched = provider.matched[index];
 
@@ -335,7 +510,15 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                         final success = await provider.handleCardTap(index);
                         if (success) {
                           if (_isOnline) {
-                            _roomManager?.sendGameState({'tapIndex': index});
+                            final senderRole =
+                                _roomManager?.role == OnlineRole.host
+                                ? 'host'
+                                : 'client';
+                            _roomManager?.sendGameState({
+                              'tapIndex': index,
+                              'senderRole': senderRole,
+                              'ts': DateTime.now().millisecondsSinceEpoch,
+                            });
                           } else if (provider.isNetworkGame) {
                             netManager.sendMessage('memory_tap', {
                               'index': index,
@@ -351,12 +534,14 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                           Stack(children: [widget!, ...list]),
                       child: isFlipped || isMatched
                           ? Container(
-                              key: const ValueKey(true),
+                              key: ValueKey('card-$index-front'),
                               decoration: BoxDecoration(
                                 color: isMatched
                                     ? AppTheme.neonGreen.withOpacity(0.1)
                                     : AppTheme.cardBackground,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  cols > 5 ? 8 : 12,
+                                ),
                                 border: Border.all(
                                   color: isMatched
                                       ? AppTheme.neonGreen
@@ -366,15 +551,25 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                _cardEmojis[provider.cards[index]],
-                                style: const TextStyle(fontSize: 32),
+                                () {
+                                  if (cardValue < 0 ||
+                                      cardValue >= _cardEmojis.length) {
+                                    return '❓';
+                                  }
+                                  return _cardEmojis[cardValue];
+                                }(),
+                                style: TextStyle(
+                                  fontSize: cols > 5 ? 22 : 32,
+                                ),
                               ),
                             )
                           : Container(
-                              key: const ValueKey(false),
+                              key: ValueKey('card-$index-back'),
                               decoration: BoxDecoration(
                                 gradient: AppTheme.primaryGradient,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  cols > 5 ? 8 : 12,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: AppTheme.neonViolet.withOpacity(0.3),
@@ -383,10 +578,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                                 ],
                               ),
                               alignment: Alignment.center,
-                              child: const Icon(
+                              child: Icon(
                                 Icons.help_outline,
                                 color: Colors.white,
-                                size: 28,
+                                size: cols > 5 ? 18 : 28,
                               ),
                             ),
                     ),
