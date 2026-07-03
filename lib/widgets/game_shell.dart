@@ -47,6 +47,7 @@ class GameShell extends StatefulWidget {
 class _GameShellState extends State<GameShell> {
   bool _didFireWinSound = false;
   bool _isWaitingForApproval = false;
+  bool _showWinOverlay = false;
   BuildContext? _activeDialogContext;
   late SupabaseRoomManager _roomManager;
   late NetworkManager _netManager;
@@ -623,10 +624,17 @@ class _GameShellState extends State<GameShell> {
     if (widget.isWinner && !oldWidget.isWinner && !_didFireWinSound) {
       _didFireWinSound = true;
       AudioService.instance.win();
+      // Delay the win overlay so the user can see their final move.
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted && widget.isWinner) {
+          setState(() => _showWinOverlay = true);
+        }
+      });
     }
     // Reset flag when game resets.
     if (!widget.isWinner && oldWidget.isWinner) {
       _didFireWinSound = false;
+      _showWinOverlay = false;
     }
   }
 
@@ -898,14 +906,17 @@ class _GameShellState extends State<GameShell> {
                 // Main game area
                 Expanded(
                   child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20.0,
-                        vertical: 16.0,
-                      ),
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        child: widget.child,
+                    child: ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20.0,
+                          vertical: 16.0,
+                        ),
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 500),
+                          child: widget.child,
+                        ),
                       ),
                     ),
                   ),
@@ -914,7 +925,7 @@ class _GameShellState extends State<GameShell> {
             ),
           ),
           WinOverlay(
-            isVisible: widget.isWinner,
+            isVisible: _showWinOverlay,
             title: widget.winTitle ?? 'CONGRATULATIONS!',
             subtitle: widget.winSubtitle ?? 'YOU WON!',
             isOnlineOrNetworkGuest:
@@ -935,53 +946,58 @@ class _GameShellState extends State<GameShell> {
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        child: GlassContainer(
-          elevation: GlassElevation.high,
-          borderColor: AppTheme.neonGreen.withOpacity(0.35),
-          borderRadius: 24, // rounded-xl (24px)
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        child: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 450),
+            child: GlassContainer(
+              elevation: GlassElevation.high,
+              borderColor: AppTheme.neonGreen.withOpacity(0.35),
+              borderRadius: 24, // rounded-xl (24px)
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.menu_book,
-                    color: AppTheme.neonGreen,
-                    size: 24,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.menu_book,
+                        color: AppTheme.neonGreen,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'How to Play: ${widget.title}',
+                          style: AppTheme.headlineMd.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'How to Play: ${widget.title}',
-                      style: AppTheme.headlineMd.copyWith(
-                        fontWeight: FontWeight.bold,
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Text(
+                        widget.rules,
+                        style: AppTheme.bodyMd.copyWith(
+                          color: AppTheme.textSecondary,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  GlassButton(
+                    color: AppTheme.neonCyan,
+                    label: const Text('Got it!'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Text(
-                    widget.rules,
-                    style: AppTheme.bodyMd.copyWith(
-                      color: AppTheme.textSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              GlassButton(
-                color: AppTheme.neonCyan,
-                label: const Text('Got it!'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+            ),
           ),
         ),
       ),

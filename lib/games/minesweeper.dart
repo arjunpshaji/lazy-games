@@ -7,6 +7,8 @@ import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
 
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+
 class MinesweeperScreen extends StatefulWidget {
   const MinesweeperScreen({super.key});
 
@@ -113,7 +115,6 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonPink,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
         child: const Text(
           'BOOM! GAME OVER',
           style: TextStyle(
@@ -127,7 +128,6 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text(
           'MINES CLEARED!',
           style: TextStyle(
@@ -258,13 +258,14 @@ class _MinesweeperScreenState extends State<MinesweeperScreen> {
       }
       return BoxDecoration(
         color: Colors.white.withOpacity(0.04),
+        border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.5),
         borderRadius: BorderRadius.zero,
       );
     }
 
     return BoxDecoration(
       color: AppTheme.cardBackground,
-      border: Border.all(color: Colors.white.withOpacity(0.04), width: 0.5),
+      border: Border.all(color: Colors.white.withOpacity(0.18), width: 0.5),
     );
   }
 

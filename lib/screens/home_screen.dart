@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late ScrollController _scrollController;
   bool _showScrollIndicator = false;
   String _selectedCategory = 'All';
-  final List<String> _categories = ['All', 'Logic', 'Classic', 'Strategy'];
+  final List<String> _categories = ['All', 'Puzzle', 'Logic', 'Classic', 'Strategy'];
 
   // Cached card animations — built once in initState, not on every build tick.
   late List<Animation<double>> _cardAnims;
@@ -159,6 +159,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       route: '/checkers',
       supportsSinglePlayer: false,
       supportsMultiplayer: true,
+    ),
+    GameInfo(
+      id: 'mini_sudoku',
+      title: 'Mini Zudoku',
+      category: 'Puzzle',
+      description: 'Solve a quick 4×4 Sudoku with 2×2 boxes — numbers 1 to 4.',
+      icon: Icons.grid_4x4,
+      color: AppTheme.neonGreen,
+      route: '/mini_sudoku',
+      supportsSinglePlayer: true,
+      supportsMultiplayer: false,
+    ),
+    GameInfo(
+      id: 'zip',
+      title: 'Zip',
+      category: 'Puzzle',
+      description: 'Draw a path through every cell in order — 1→2→3→…',
+      icon: Icons.route,
+      color: AppTheme.neonCyan,
+      route: '/zip',
+      supportsSinglePlayer: true,
+      supportsMultiplayer: false,
+    ),
+    GameInfo(
+      id: 'tango',
+      title: 'Tango',
+      category: 'Puzzle',
+      description: 'Fill the grid with ☀️ and 🌙 — balanced rows, no 3 in a row.',
+      icon: Icons.brightness_4,
+      color: AppTheme.neonOrange,
+      route: '/tango',
+      supportsSinglePlayer: true,
+      supportsMultiplayer: false,
+    ),
+    GameInfo(
+      id: 'patchable',
+      title: 'Patchable',
+      category: 'Puzzle',
+      description: 'Drag and drop tetromino pieces to fill the entire grid.',
+      icon: Icons.dashboard,
+      color: AppTheme.neonViolet,
+      route: '/patchable',
+      supportsSinglePlayer: true,
+      supportsMultiplayer: false,
     ),
   ];
 

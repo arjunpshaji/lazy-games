@@ -7,6 +7,8 @@ import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
 
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+
 class WordSearchScreen extends StatefulWidget {
   const WordSearchScreen({super.key});
 
@@ -206,7 +208,6 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text(
           'ALL WORDS FOUND!',
           style: TextStyle(

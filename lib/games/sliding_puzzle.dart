@@ -7,6 +7,8 @@ import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/widgets/lottie_loader.dart';
 import 'package:provider/provider.dart';
 
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+
 class SlidingPuzzleScreen extends StatefulWidget {
   const SlidingPuzzleScreen({super.key});
 
@@ -78,7 +80,6 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: const Text(
           'YOU SOLVED IT!',
           style: TextStyle(
@@ -92,7 +93,6 @@ class _SlidingPuzzleScreenState extends State<SlidingPuzzleScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonPink,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonPink),
         child: const Text(
           'OPPONENT WON THE RACE!',
           style: TextStyle(

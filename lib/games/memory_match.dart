@@ -6,6 +6,8 @@ import 'package:lazy_games/services/network_manager.dart';
 import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+import 'package:lazy_games/widgets/glass_button.dart';
 import 'package:lazy_games/widgets/glass_container.dart';
 import 'package:provider/provider.dart';
 
@@ -231,12 +233,43 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     final provider = Provider.of<MemoryMatchProvider>(context);
     final netManager = Provider.of<NetworkManager>(context);
 
+    // Build the reset callback once so we can reuse it in the draw inline button.
+    final canReset = !(provider.isNetworkGame &&
+        provider.myRole != 'host' &&
+        provider.isGameOver);
+    void doReset() {
+      if (_isOnline) {
+        _roomManager?.sendGameState({
+          'type': 'memory_online_reset',
+          'ts': DateTime.now().millisecondsSinceEpoch,
+        });
+        final onlineRole =
+            _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+        if (onlineRole == 'host') {
+          _generateAndSyncOnlineGame(provider.difficulty);
+        }
+      } else if (provider.isNetworkGame) {
+        _generateAndSyncNetworkGame(provider.difficulty);
+        netManager.sendMessage('memory_reset', {});
+      } else {
+        provider.setupGame(
+          isNetwork: false,
+          role: 'host',
+          isSolo: provider.isSolo,
+          difficulty: provider.difficulty,
+        );
+      }
+    }
+
     Widget statusWidget;
     if (provider.isGameOver) {
       String winnerText;
+      final isDraw =
+          !provider.isSolo &&
+          provider.player1Score == provider.player2Score;
       if (provider.isSolo) {
         winnerText = "GAME COMPLETED!";
-      } else if (provider.player1Score == provider.player2Score) {
+      } else if (isDraw) {
         winnerText = "MATCH DRAW!";
       } else {
         final win1 = provider.player1Score > provider.player2Score;
@@ -249,19 +282,50 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
           winnerText = win1 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
         }
       }
-      statusWidget = AnimatedNeonContainer(
-        color: AppTheme.neonGreen,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
-        child: Text(
-          winnerText,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Colors.white,
+
+      // For a DRAW, show the text + a prominent retry button inline so
+      // the user doesn't have to reach for the hidden appbar icon.
+      if (isDraw && canReset) {
+        statusWidget = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedNeonContainer(
+              color: AppTheme.neonOrange,
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: const Text(
+                'MATCH DRAW! 🤝',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GlassButton(
+              color: AppTheme.neonCyan,
+              icon: const Icon(Icons.replay, size: 18),
+              label: const Text('Play Again'),
+              isPrimary: true,
+              onPressed: doReset,
+            ),
+          ],
+        );
+      } else {
+        statusWidget = AnimatedNeonContainer(
+          color: AppTheme.neonGreen,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          child: Text(
+            winnerText,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.white,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } else {
       String turnText;
       final isMyTurn = provider.isMyTurn;
@@ -278,13 +342,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       statusWidget = AnimatedNeonContainer(
         color: provider.isPlayer1Turn ? AppTheme.neonCyan : AppTheme.neonViolet,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isSolo
-              ? AppTheme.neonPink
-              : (provider.isPlayer1Turn
-                    ? AppTheme.neonCyan
-                    : AppTheme.neonViolet),
-        ),
         child: Text(
           turnText,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -336,35 +393,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       isInProgress:
           !provider.isGameOver &&
           (provider.flipped.contains(true) || provider.matched.contains(true)),
-      onReset:
-          provider.isNetworkGame &&
-              provider.myRole != 'host' &&
-              provider.isGameOver
-          ? null
-          : () {
-              if (_isOnline) {
-                _roomManager?.sendGameState({
-                  'type': 'memory_online_reset',
-                  'ts': DateTime.now().millisecondsSinceEpoch,
-                });
-                final onlineRole = _roomManager?.role == OnlineRole.host
-                    ? 'host'
-                    : 'client';
-                if (onlineRole == 'host') {
-                  _generateAndSyncOnlineGame(provider.difficulty);
-                }
-              } else if (provider.isNetworkGame) {
-                _generateAndSyncNetworkGame(provider.difficulty);
-                netManager.sendMessage('memory_reset', {});
-              } else {
-                provider.setupGame(
-                  isNetwork: false,
-                  role: 'host',
-                  isSolo: provider.isSolo,
-                  difficulty: provider.difficulty,
-                );
-              }
-            },
+      onReset: canReset ? doReset : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -8,6 +8,8 @@ import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+
 class ConnectFourScreen extends StatefulWidget {
   const ConnectFourScreen({super.key});
 
@@ -104,9 +106,6 @@ class _ConnectFourScreenState extends State<ConnectFourScreen> {
       statusWidget = AnimatedNeonContainer(
         color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.winner == 3 ? Colors.grey : AppTheme.neonGreen,
-        ),
         child: Text(
           winnerText,
           style: const TextStyle(

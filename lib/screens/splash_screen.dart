@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lazy_games/theme/app_theme.dart';
+import 'package:lazy_games/utils/responsive_layout.dart';
 import 'package:lazy_games/widgets/liquid_glass_background.dart';
 import 'package:lottie/lottie.dart';
 
@@ -76,6 +77,9 @@ class _SplashScreenState extends State<SplashScreen>
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
+                final isMobile = ResponsiveLayout.isMobile(context);
+                final lottieSize = isMobile ? 220.0 : 380.0;
+
                 return Opacity(
                   opacity: _opacityAnimation.value,
                   child: Transform.scale(
@@ -83,7 +87,11 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Lottie.asset('assets/lottie/splash_timer_loader.json'),
+                        Lottie.asset(
+                          'assets/lottie/puzzle_loader.json',
+                          height: lottieSize,
+                          width: lottieSize,
+                        ),
                         const SizedBox(height: 32),
                         // Title
                         Text(

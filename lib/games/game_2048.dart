@@ -7,6 +7,8 @@ import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:provider/provider.dart';
 
+import 'package:lazy_games/widgets/animated_neon_container.dart';
+
 class Game2048Screen extends StatefulWidget {
   const Game2048Screen({super.key});
 
@@ -118,9 +120,6 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                     vertical: 8,
                     horizontal: 16,
                   ),
-                  decoration: AppTheme.neonBorderDecoration(
-                    color: AppTheme.neonPink,
-                  ),
                   child: const Text(
                     'GAME OVER!',
                     style: TextStyle(
@@ -137,9 +136,6 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                   padding: const EdgeInsets.symmetric(
                     vertical: 8,
                     horizontal: 16,
-                  ),
-                  decoration: AppTheme.neonBorderDecoration(
-                    color: AppTheme.neonGreen,
                   ),
                   child: const Text(
                     'YOU REACHED 2048!',

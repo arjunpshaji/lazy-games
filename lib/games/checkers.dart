@@ -6,6 +6,7 @@ import 'package:lazy_games/services/supabase_room_manager.dart';
 import 'package:lazy_games/theme/app_theme.dart';
 import 'package:lazy_games/widgets/game_shell.dart';
 import 'package:lazy_games/providers/checkers_provider.dart';
+import 'package:lazy_games/widgets/animated_neon_container.dart';
 
 class CheckersScreen extends StatefulWidget {
   const CheckersScreen({super.key});
@@ -22,29 +23,30 @@ class _CheckersScreenState extends State<CheckersScreen> {
   bool _netInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_netInitialized) {
+      _netInitialized = true;
       _netManager = Provider.of<NetworkManager>(context, listen: false);
       _provider = Provider.of<CheckersProvider>(context, listen: false);
-      _netInitialized = true;
-
-      final args =
-          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final isNetwork = args?['network'] ?? false;
       _isOnline = args?['online'] ?? false;
+      
       final role = _netManager.role == NetworkRole.host ? 'host' : 'client';
 
       if (_isOnline) {
         _roomManager = Provider.of<SupabaseRoomManager>(context, listen: false);
-        final onlineRole = _roomManager!.role == OnlineRole.host
-            ? 'host'
-            : 'client';
+        _roomManager?.addMessageListener(_handleOnlineMessage);
+        
+        final onlineRole = _roomManager?.role == OnlineRole.host ? 'host' : 'client';
         _provider.setupGame(isNetwork: true, role: onlineRole);
-        _roomManager!.addMessageListener(_handleOnlineMessage);
-      } else if (isNetwork) {
+      } else {
         _provider.setupGame(isNetwork: isNetwork, role: role);
+      }
+
+      if (isNetwork) {
         _netManager.onMessageReceived = (packet) {
           if (packet['type'] == 'checkers_move') {
             final from = packet['data']['from'] as int;
@@ -54,25 +56,18 @@ class _CheckersScreenState extends State<CheckersScreen> {
             _provider.setupGame(isNetwork: true, role: role);
           }
         };
-      } else {
-        _provider.setupGame(isNetwork: false, role: role);
       }
-    });
+    }
   }
 
-  void _handleOnlineMessage(Map<String, dynamic> packet) {
-    if (packet['type'] == 'game_state_update') {
-      final data = packet['data'] as Map<String, dynamic>;
-      if (data['type'] == 'checkers_online_reset') {
-        final onlineRole = _roomManager?.role == OnlineRole.host
-            ? 'host'
-            : 'client';
-        _provider.setupGame(isNetwork: true, role: onlineRole);
-      } else if (data.containsKey('board')) {
-        final board = (data['board'] as List).cast<int>();
-        final isPlayer1Turn = data['isPlayer1Turn'] as bool;
-        _provider.applyOnlineState(board: board, isPlayer1Turn: isPlayer1Turn);
-      }
+  void _handleOnlineMessage(Map<String, dynamic> data) {
+    if (data['type'] == 'checkers_online_move') {
+      final from = data['from'] as int;
+      final to = data['to'] as int;
+      _provider.handleNetworkMove(from, to);
+    } else if (data['type'] == 'checkers_online_reset') {
+      final onlineRole = _roomManager?.role == OnlineRole.host ? 'host' : 'client';
+      _provider.setupGame(isNetwork: true, role: onlineRole);
     }
   }
 
@@ -102,7 +97,6 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget = AnimatedNeonContainer(
         color: AppTheme.neonGreen,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(color: AppTheme.neonGreen),
         child: Text(
           winnerText,
           style: const TextStyle(
@@ -126,23 +120,12 @@ class _CheckersScreenState extends State<CheckersScreen> {
       statusWidget = AnimatedNeonContainer(
         color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: AppTheme.neonBorderDecoration(
-          color: provider.isPlayer1Turn ? AppTheme.neonPink : AppTheme.neonCyan,
-        ),
         child: Text(
           turnText,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       );
     }
-
-    final iWon =
-        (provider.myRole == 'host' && provider.winner == 1) ||
-        (provider.myRole == 'client' && provider.winner == 2);
-    final isWinner = provider.winner != 0 && (!provider.isNetworkGame || iWon);
-    final winSubtitle = provider.isNetworkGame
-        ? 'YOU WON!'
-        : (provider.winner == 1 ? 'PINK WINS!' : 'CYAN WINS!');
 
     final iWon =
         (provider.myRole == 'host' && provider.winner == 1) ||

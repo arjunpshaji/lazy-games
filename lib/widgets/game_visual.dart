@@ -34,6 +34,14 @@ class GameVisual extends StatelessWidget {
         return _buildSlidingPuzzle();
       case 'checkers':
         return _buildCheckers();
+      case 'mini_sudoku':
+        return _buildMiniSudoku();
+      case 'zip':
+        return _buildZip();
+      case 'tango':
+        return _buildTango();
+      case 'patchable':
+        return _buildPatchable();
       default:
         return Icon(Icons.videogame_asset, color: color, size: size * 0.6);
     }
@@ -526,4 +534,189 @@ class GameVisual extends StatelessWidget {
       ),
     );
   }
+
+  // Mini Sudoku: 4x4 grid
+  Widget _buildMiniSudoku() {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+        ),
+        itemCount: 16,
+        itemBuilder: (_, i) {
+          // Pre-filled sample values for visual
+          const sample = [1, 0, 3, 0, 0, 2, 0, 4, 3, 0, 1, 0, 0, 4, 0, 2];
+          final val = sample[i];
+          return Container(
+            margin: const EdgeInsets.all(0.5),
+            decoration: BoxDecoration(
+              border: Border(
+                right: i % 2 == 1
+                    ? BorderSide(color: color.withOpacity(0.5), width: 1)
+                    : BorderSide.none,
+                bottom: i ~/ 4 == 1
+                    ? BorderSide(color: color.withOpacity(0.5), width: 1)
+                    : BorderSide.none,
+              ),
+            ),
+            child: val != 0
+                ? Center(
+                    child: Text(
+                      '$val',
+                      style: TextStyle(
+                        fontSize: size * 0.1,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  )
+                : null,
+          );
+        },
+      ),
+    );
+  }
+
+  // Zip: numbered dots with a path
+  Widget _buildZip() {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _ZipVisualPainter(color: color, size: size),
+      ),
+    );
+  }
+
+  // Tango: sun and moon symbols
+  Widget _buildTango() {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+      ),
+      child: GridView.count(
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 4,
+        children: ['☀️', '🌙', '🌙', '☀️', '🌙', '☀️', '☀️', '🌙',
+                   '☀️', '🌙', '🌙', '☀️', '🌙', '☀️', '☀️', '🌙']
+            .map((e) => Center(
+                  child: Text(e, style: TextStyle(fontSize: size * 0.11)),
+                ))
+            .toList(),
+      ),
+    );
+  }
+
+  // Patchable: colored tetromino blocks
+  Widget _buildPatchable() {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _PatchableVisualPainter(color: color, size: size),
+      ),
+    );
+  }
 }
+
+class _ZipVisualPainter extends CustomPainter {
+  final Color color;
+  final double size;
+  const _ZipVisualPainter({required this.color, required this.size});
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final paint = Paint()
+      ..color = color.withOpacity(0.6)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final cellSize = size / 4;
+    // Illustrative path: 1→2→3→4
+    final points = [
+      Offset(cellSize * 0.5, cellSize * 0.5),
+      Offset(cellSize * 1.5, cellSize * 0.5),
+      Offset(cellSize * 1.5, cellSize * 1.5),
+      Offset(cellSize * 2.5, cellSize * 1.5),
+      Offset(cellSize * 2.5, cellSize * 2.5),
+      Offset(cellSize * 3.5, cellSize * 2.5),
+    ];
+
+    for (int i = 0; i < points.length - 1; i++) {
+      canvas.drawLine(points[i], points[i + 1], paint);
+    }
+
+    final dotPaint = Paint()..color = color;
+    final endpoints = [points[0], points[2], points[4], points[5]];
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    for (int i = 0; i < endpoints.length; i++) {
+      canvas.drawCircle(endpoints[i], cellSize * 0.35, dotPaint);
+      textPainter.text = TextSpan(
+        text: '${i + 1}',
+        style: TextStyle(
+          fontSize: cellSize * 0.4,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        endpoints[i] - Offset(textPainter.width / 2, textPainter.height / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ZipVisualPainter old) => false;
+}
+
+class _PatchableVisualPainter extends CustomPainter {
+  final Color color;
+  final double size;
+  const _PatchableVisualPainter({required this.color, required this.size});
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final cell = size / 5;
+    // Each entry: (color, list of [row, col] pairs)
+    final pieces = <(Color, List<List<int>>)>[
+      (Colors.cyan,        [[0, 0], [1, 0], [2, 0], [2, 1]]),
+      (Colors.purpleAccent, [[0, 2], [0, 3], [1, 1], [1, 2]]),
+      (Colors.orange,      [[2, 2], [2, 3], [2, 4], [3, 3]]),
+      (Colors.green,       [[3, 0], [3, 1], [3, 2], [4, 2]]),
+    ];
+
+    for (final (c, coords) in pieces) {
+      final paint = Paint()..color = c.withOpacity(0.55);
+      for (final coord in coords) {
+        final r = coord[0];
+        final cc = coord[1];
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(cc * cell + 1, r * cell + 1, cell - 2, cell - 2),
+            const Radius.circular(2),
+          ),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PatchableVisualPainter old) => false;
+}
+

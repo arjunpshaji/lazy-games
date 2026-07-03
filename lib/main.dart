@@ -34,6 +34,14 @@ import 'providers/sliding_puzzle_provider.dart';
 import 'games/sliding_puzzle.dart';
 import 'providers/checkers_provider.dart';
 import 'games/checkers.dart';
+import 'providers/mini_sudoku_provider.dart';
+import 'games/mini_sudoku.dart';
+import 'providers/zip_provider.dart';
+import 'games/zip.dart';
+import 'providers/tango_provider.dart';
+import 'games/tango.dart';
+import 'providers/patchable_provider.dart';
+import 'games/patchable.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +77,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => WordSearchProvider()),
         ChangeNotifierProvider(create: (_) => SlidingPuzzleProvider()),
         ChangeNotifierProvider(create: (_) => CheckersProvider()),
+        ChangeNotifierProvider(create: (_) => MiniSudokuProvider()),
+        ChangeNotifierProvider(create: (_) => ZipProvider()),
+        ChangeNotifierProvider(create: (_) => TangoProvider()),
+        ChangeNotifierProvider(create: (_) => PatchableProvider()),
       ],
       child: const LazyGamesApp(),
     ),
@@ -101,6 +113,10 @@ class LazyGamesApp extends StatelessWidget {
         '/word_search': (context) => const WordSearchScreen(),
         '/sliding_puzzle': (context) => const SlidingPuzzleScreen(),
         '/checkers': (context) => const CheckersScreen(),
+        '/mini_sudoku': (context) => const MiniSudokuScreen(),
+        '/zip': (context) => const ZipScreen(),
+        '/tango': (context) => const TangoScreen(),
+        '/patchable': (context) => const PatchableScreen(),
       },
     );
   }
